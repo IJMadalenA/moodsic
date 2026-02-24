@@ -1,0 +1,77 @@
+[project]
+name = "moodsic"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "psycopg>=3.3.3",
+    "spotipy>=2.25.2",
+    "virtualenv>=20.39.0",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "pytest-django>=4.12.0",
+    "pytest-mock>=3.15.1",
+    "ruff>=0.15.2",
+    "ty>=0.0.18",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+exclude = [
+    ".venv",
+    "__pypackages__",
+    "migrations",
+    "staticfiles",
+    "media",
+    "node_modules",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "C90",  # mccabe
+    "B",    # flake8-bugbear
+    "DJ",   # flake8-django
+    "I",    # isort
+    "UP",   # pyupgrade
+    "C4",   # flake8-comprehensions
+    "T20",  # flake8-print
+    "SIM",  # flake8-simplify
+    "ARG",  # flake8-unused-arguments
+    "DTZ",  # flake8-datetimez
+    "Q",    # flake8-quotes
+    "S",    # flake8-bandit
+    "PL",   # pylint
+    "RUF",  # ruff-specific rules
+]
+ignore = [
+    "E501", # line length handled by formatter
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["raikojin"]
+known-third-party = ["django", "django_environ", "dj_database_url", "django_unfold"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
