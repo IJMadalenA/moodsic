@@ -1,0 +1,71 @@
+services:
+
+  postgres:
+    container_name: Postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /data/postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    image: postgres:18.1-alpine
+    restart: always
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 4096M
+        reservations:
+          cpus: '1.0'
+          memory: 1024M
+
+  pgAdmin:
+      container_name: PGAdmin
+      depends_on:
+          postgres:
+              condition: service_healthy
+      env_file:
+        - .env
+      image: dpage/pgadmin4
+      links:
+        - 'postgres:pgsql-server'
+      ports:
+        - "8080:80"
+      restart: always
+      volumes:
+        - pgadmin_data:/var/lib/pgadmin/
+      deploy:
+        resources:
+          limits:
+            cpus: '1.0'
+            memory: 1024M
+          reservations:
+            cpus: '0.5'
+            memory: 512M
+
+  redis:
+    container_name: redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+    image: redis:7-alpine
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+volumes:
+  postgres_data:
+  pgadmin_data:

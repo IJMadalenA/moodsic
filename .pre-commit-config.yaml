@@ -1,0 +1,45 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-ast
+        name: check-ast...............................(checks Python files for syntax errors)
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: check-executables-have-shebangs
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+        name: check-shebang-scripts-are-executable....(checks that scripts with shebang lines are executable)
+      - id: check-symlinks
+        name: check-symlinks..........................(checks for broken symbolic links)
+        exclude: "^(bin|test|libs/testo/.*test|src/spacegrep/bin/.*)$"
+      - id: check-toml
+      - id: check-vcs-permalinks
+        name: check-vcs-permalinks....................(checks for valid version control system permalinks)
+      - id: check-xml
+      - id: check-yaml
+        args: [ --allow-multiple-documents ]
+      - id: debug-statements
+        name: debug-statements........................(checks for debug statements in Python code)
+      - id: destroyed-symlinks
+      - id: detect-private-key
+      - id: fix-byte-order-marker
+        name: fix-byte-order-marker...................(removes byte order markers from files)
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [ --fix=lf ]
+      - id: requirements-txt-fixer
+      - id: trailing-whitespace
+        name: trailing-whitespace.....................(removes trailing whitespace from files)
+        args: [ --markdown-linebreak-ext=md ]
+        exclude: "snapshots"
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.6
+    hooks:
+      - id: ruff
+        name: ruff....................................(linting and auto-fix)
+        args: [ --fix ]
+      - id: ruff-format
+        name: ruff-format.............................(code formatter)
