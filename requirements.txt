@@ -1,0 +1,55 @@
+# ==========================
+# Django Core
+# ==========================
+Django>=4.2,<5.0
+djangorestframework
+django-ninja
+
+# ==========================
+# Database
+# ==========================
+psycopg[binary]
+psycopg2-binary
+redis
+
+# ==========================
+# Environment & Config
+# ==========================
+python-dotenv
+
+# ==========================
+# HTTP / APIs
+# ==========================
+requests
+httpx
+
+# ==========================
+# Spotify Integration
+# ==========================
+spotipy
+
+# ==========================
+# Machine Learning
+# ==========================
+tensorflow
+numpy
+pandas
+scikit-learn
+torch
+
+# ==========================
+# Data Processing
+# ==========================
+joblib
+
+# ==========================
+# Dashboard / Visualization
+# ==========================
+matplotlib
+plotly
+
+# ==========================
+# Utilities
+# ==========================
+ruff
+black
