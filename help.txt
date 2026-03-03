@@ -1,0 +1,10 @@
+ACTIVAR EL ENTORNO VIRTUAL
+    -   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+    -   .\venv\Scripts\activate
+
+INTALAR TODO LO NECESARIO
+    - pip install -r requirements.txt
+
+LEVANTAR
+    - python manage.py runserver
+
