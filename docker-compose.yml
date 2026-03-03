@@ -1,4 +1,38 @@
 services:
+  django-web:
+    container_name: django-web
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      sh -c "
+      python manage.py migrate &&
+      python manage.py runserver 0.0.0.0:8000
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+    healthcheck:
+      test: ["CMD-SHELL", "python manage.py check"]
+      interval: 3s
+      timeout: 3s
+      retries: 3
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 4096M
+        reservations:
+          cpus: '1.0'
+          memory: 1024M
 
   postgres:
     container_name: Postgres

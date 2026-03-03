@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1>Perfil de Usuario</h1>
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">{{ user.email }}</h5>
+            <div class="card-text">
+                <p><strong>Username:</strong> {{ user.username }}</p>
+                {% if user.spotify_id %}
+                    <p><strong>Spotify ID:</strong> {{ user.spotify_id }}</p>
+                    {% if user.avatar_url %}
+                        <p><strong>Avatar:</strong> <img src="{{ user.avatar_url }}" alt="Avatar" width="100" class="img-thumbnail"></p>
+                    {% endif %}
+                    <p><span class="badge bg-success">Conectado con Spotify</span></p>
+                {% else %}
+                    <p><span class="badge bg-warning text-dark">No conectado con Spotify</span></p>
+                {% endif %}
+            </div>
+            <a href="{% url 'account_logout' %}" class="btn btn-danger">Cerrar Sesión</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

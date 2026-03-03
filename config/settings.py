@@ -10,72 +10,171 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import logging
+import os
+import sys
 from pathlib import Path
+
+import environ
+
+logger = logging.getLogger(__name__)
+
+env = environ.Env(
+    DEBUG=(bool, False),
+    DEVELOPMENT_MODE=(bool, False),
+    LOCAL=(bool, False),
+    ALLOWED_HOSTS=(list, ""),
+    CSRF_TRUSTED_ORIGINS=(list, []),
+    SECRET_KEY=(str, ""),
+)
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+IS_TEST = "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ
+
+environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-kfe!ugk6_lthij(wd126#u6r3e5b$(jmaz8%o=&bz00^)f@#0z'
+SECRET_KEY = env.str("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool("DEBUG")  # https://docs.djangoproject.com/es/6/ref/settings/#debug.
+DEVELOPMENT_MODE = env.bool("DEVELOPMENT_MODE")
+IS_PRODUCTION = not DEVELOPMENT_MODE and not DEBUG
 
-ALLOWED_HOSTS = []
+SITE_ID = 1  # https://docs.djangoproject.com/es/6/ref/settings/#site-id.
+
+ADMINS = (
+    [] if IS_TEST else env("ADMINS")
+)  # https://docs.djangoproject.com/es/6/ref/settings/#admins.
+MANAGERS = ADMINS  # https://docs.djangoproject.com/es/6/ref/settings/#managers.
+
+ALLOWED_HOSTS = env.list(
+    "ALLOWED_HOSTS"
+)  # https://docs.djangoproject.com/es/6/ref/settings/#allowed-hosts.
+APPEND_SLASH = True  # https://docs.djangoproject.com/es/6/ref/settings/#append-slash.
 
 
 # Application definition
-
-INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+DJANGO_DEFAULT_APPS = [
+    "unfold",  # before django.contrib.admin
+    # "unfold.contrib.filters",  # optional, if special filters are needed
+    # "unfold.contrib.forms",  # optional, if special form elements are needed
+    # "unfold.contrib.inlines",  # optional, if special inlines are needed
+    # "unfold.contrib.guardian",  # optional, if django-guardian package is used
+    # "unfold.contrib.simple_history",  # optional, if django-simple-history package is used
+    # "unfold.contrib.location_field",  # optional, if django-location-field package is used
+    # "unfold.contrib.constance",  # optional, if django-constance package is used
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "django.contrib.admin",  # required
+    "django.contrib.sites",  # Required by allauth
 ]
+THIRD_PARTY_APPS = [
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.spotify",
+    "django_countries",
+    "cities_light",
+]
+LOCAL_APPS = [
+    "apps.users",
+    "apps.music",
+    "apps.context",
+    "apps.interactions",
+    "apps.dashboard",
+]
+INSTALLED_APPS = DJANGO_DEFAULT_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
+# Enable gzip compression for dynamic responses in production
+if IS_PRODUCTION:
+    MIDDLEWARE.insert(3, "django.middleware.gzip.GZipMiddleware")
 
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'config.wsgi.application'
+AUTHENTICATION_BACKENDS = [
+    # Needed to login by username in Django admin, regardless of `allauth`
+    "django.contrib.auth.backends.ModelBackend",
+    # `allauth` specific authentication methods, such as login by e-mail
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+# SOCIAL ACCOUNT SETTINGS
+SOCIALACCOUNT_PROVIDERS = {
+    "spotify": {
+        "SCOPE": [
+            "user-read-email",
+            "user-read-private",
+            "user-library-read",
+            "user-top-read",
+            "playlist-read-private",
+            "user-read-recently-played",
+        ],
+    }
+}
+
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+
+# ALLAUTH CONFIGURATION
+AUTH_USER_MODEL = "users.User"
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_EMAIL_VERIFICATION = "none"
+
+SOCIALACCOUNT_ADAPTER = "apps.users.adapter.MoodsicSocialAccountAdapter"
+
+# SPOTIPY CONFIGURATION
+SPOTIPY_CLIENT_ID = env.str("SPOTIPY_CLIENT_ID", default="")
+SPOTIPY_CLIENT_SECRET = env.str("SPOTIPY_CLIENT_SECRET", default="")
+SPOTIPY_REDIRECT_URI = env.str("SPOTIPY_REDIRECT_URI", default="")
+
+# OPEN-METEO CONFIGURATION
+OPENMETEO_BASE_URL = "https://api.open-meteo.com/v1/forecast"
+
+WSGI_APPLICATION = "config.wsgi.application"
 
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 
@@ -85,38 +184,60 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
-
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
-USE_I18N = True
-
-USE_TZ = True
+LANGUAGE_CODE = (
+    "en-us"  # https://docs.djangoproject.com/es/6/ref/settings/#language-code.
+)
+LANGUAGES = (
+    ("en", "English"),
+    ("es", "Spanish"),
+)
+TIME_ZONE = "Europe/Madrid"
+USE_I18N = True  # https://docs.djangoproject.com/en/6/topics/i18n/.
+USE_TZ = True  # https://docs.djangoproject.com/es/6/ref/settings/#use-tz.
 
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
+
+# DJANGO UNFOLD. https://unfold.readthedocs.io/en/latest/installation.html
+UNFOLD = {
+    "SITE_TITLE": "Moodsic Admin",
+    "SITE_HEADER": "Moodsic Administration",
+    "INDEX_TITLE": "Welcome to Moodsic Admin Panel",
+    # "SITE_DROPDOWN": [
+    #     },
+    #     # ...
+    # ],
+    "SIDEBAR": {
+        "show_search": True,
+    },
+    "SHOW_VIEW_ON_SITE": True,
+    "SHOW_BACK_BUTTON": True,
+}
