@@ -87,11 +87,11 @@ THIRD_PARTY_APPS = [
     "cities_light",
 ]
 LOCAL_APPS = [
-    "apps.users",
-    "apps.music",
-    "apps.context",
-    "apps.interactions",
-    "apps.dashboard",
+    "apps.users.apps.UsersConfig",
+    "apps.music.apps.MusicConfig",
+    "apps.context.apps.ContextConfig",
+    "apps.interactions.apps.InteractionsConfig",
+    "apps.dashboard.apps.DashboardConfig",
 ]
 INSTALLED_APPS = DJANGO_DEFAULT_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -164,6 +164,12 @@ SPOTIPY_REDIRECT_URI = env.str("SPOTIPY_REDIRECT_URI", default="")
 
 # OPEN-METEO CONFIGURATION
 OPENMETEO_BASE_URL = "https://api.open-meteo.com/v1/forecast"
+
+# CITIES-LIGHT CONFIGURATION
+# https://django-cities-light.readthedocs.io/en/stable/
+CITIES_LIGHT_TRANSLATION_LANGUAGES = ["es", "en"]
+CITIES_LIGHT_INCLUDE_COUNTRIES = ["ES", "MX", "AR", "CO", "CL", "PE"]
+CITIES_LIGHT_APP_NAME = "cities_light"
 
 WSGI_APPLICATION = "config.wsgi.application"
 

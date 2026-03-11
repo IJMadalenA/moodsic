@@ -95,8 +95,8 @@ class WeatherContext(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = _("Contexto climático")
-        verbose_name_plural = _("Contextos climáticos")
+        verbose_name = _("Weather Context")
+        verbose_name_plural = _("Weather Contexts")
         ordering = ("-timestamp",)
         indexes = (
             models.Index(fields=["timestamp"]),
