@@ -10,7 +10,7 @@ Para evitar documentos extensos y poco manejables, la documentación se divide e
 | :--- | :--- | :--- |
 | **Infraestructura y Autenticación** | Configuración base, modelo de usuario, integración con Spotify y gestión de tokens. | [`infrastructure_auth.md`](infrastructure_auth.md) |
 | **Contexto (Weather & Geo)** | Ingesta de datos climáticos y geográficos. | [`context_data.md`](context_data.md) |
-| **Música e Integración API** | Servicios de búsqueda y creación de playlists en Spotify. | *(Próximamente)* |
+| **Música e Integración API** | Servicios de búsqueda y creación de playlists en Spotify. | Documentación disponible en `/api/interactions/docs/` |
 | **IA y Modelos RL** | Arquitectura del Agente de Aprendizaje por Refuerzo. | *(Próximamente)* |
 
 ## Guías de Desarrollo
