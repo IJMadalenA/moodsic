@@ -10,6 +10,11 @@ Características clave:
 - Prototipo en Python con Spotipy y TensorFlow.
 - Evaluado con métricas de reward y pruebas con usuarios.
 
+API:
+
+- Base de API: `/api/interactions/`
+- Documentación Swagger: `/api/interactions/docs/`
+
 moodsic/
 │
 ├── manage.py
@@ -17,7 +22,9 @@ moodsic/
 ├── help.txt
 ├── README.md
 ├── .env
+├── .env.example
 ├── .gitignore
+├── Dockerfile
 │
 ├── config/                         # Configuración global de Django
 │   ├── __init__.py
@@ -97,6 +104,5 @@ moodsic/
 │   ├── etl_news.py                         # Datos noticias → BD
 │   └── state_pipeline.py                    # Construcción estado RL
 │
-└── docker/                                # Infraestructura
-    ├── Dockerfile
-    └── docker-compose.yml                  # PostgreSQL + (Redis opcional)
+└── Dockerfile
+└── docker-compose.yml                  # PostgreSQL + (Redis opcional)
