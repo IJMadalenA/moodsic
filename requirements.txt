@@ -6,6 +6,14 @@ djangorestframework
 django-ninja
 
 # ==========================
+# Django Extensions
+# ==========================
+django-unfold
+django-allauth
+django-countries
+django-cities-light
+
+# ==========================
 # Database
 # ==========================
 psycopg[binary]
