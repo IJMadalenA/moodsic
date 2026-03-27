@@ -152,8 +152,12 @@ LOGOUT_REDIRECT_URL = "/"
 
 # ALLAUTH CONFIGURATION
 AUTH_USER_MODEL = "users.User"
-ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
+# Keep session cookie behavior explicit for OAuth roundtrips.
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = False
 
 SOCIALACCOUNT_ADAPTER = "apps.users.adapter.MoodsicSocialAccountAdapter"
 
@@ -246,4 +250,33 @@ UNFOLD = {
     },
     "SHOW_VIEW_ON_SITE": True,
     "SHOW_BACK_BUTTON": True,
+}
+
+# LOGGING CONFIGURATION FOR DEBUGGING
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "allauth": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
+    },
 }
