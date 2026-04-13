@@ -147,3 +147,37 @@ def test_weather_service_partial_response(mock_get):
     assert weather.temp_max is None
     assert weather.main_status == "Clear"  # Default for code 0 if missing
     assert WeatherContext.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_weather_context_str_representations():
+    """
+    Verifica las representaciones en string para diferentes niveles de ubicación.
+    """
+    country = Country.objects.create(name="Spain", code2="ES")
+
+    # Solo país
+    weather_country = WeatherContext.objects.create(
+        country=country,
+        main_status="Clear",
+        description="despejado",
+        temperature=25.0,
+        feels_like=24.0,
+        timestamp=timezone.now(),
+    )
+    assert "Spain" in str(weather_country)
+
+    # Región
+    from cities_light.models import Region
+
+    region = Region.objects.create(name="Madrid Region", country=country)
+    weather_region = WeatherContext.objects.create(
+        region=region,
+        main_status="Clear",
+        description="despejado",
+        temperature=25.0,
+        feels_like=24.0,
+        timestamp=timezone.now(),
+    )
+    assert "Madrid Region" in str(weather_region)
+    assert "Spain" in str(weather_region)

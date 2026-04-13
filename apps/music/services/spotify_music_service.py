@@ -8,6 +8,10 @@ from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
 
 logger = logging.getLogger(__name__)
 
+# Constantes para códigos de estado HTTP
+HTTP_401_UNAUTHORIZED = 401
+HTTP_429_TOO_MANY_REQUESTS = 429
+
 
 class SpotifyMusicService:
     """
@@ -78,6 +82,128 @@ class SpotifyMusicService:
         if not self.client:
             return None
         return self.client.current_user()
+
+    def search_tracks(self, query: str, limit: int = 20, **_kwargs):
+        """
+        Busca tracks en Spotify.
+        Permite filtrar por parámetros de audio si se proporcionan en kwargs.
+        Debido a que la API de búsqueda de Spotify no soporta parámetros de audio directamente,
+        estos se usarán para filtrar los resultados o como base para recomendaciones si es necesario.
+        En esta implementación inicial, realizamos la búsqueda y luego podríamos filtrar
+        (aunque el filtrado real por audio suele ser más eficiente vía recommendations).
+        """
+        if not self.client:
+            return None
+
+        results = self.client.search(q=query, limit=limit, type="track")
+
+        # Si hay parámetros de audio en kwargs, podríamos filtrar los resultados aquí.
+        # Por ahora, devolvemos los resultados de la búsqueda.
+        return results
+
+    def get_recommendations(
+        self,
+        seed_artists: list | None = None,
+        seed_genres: list | None = None,
+        seed_tracks: list | None = None,
+        limit: int = 20,
+        **kwargs,
+    ):
+        """
+        Obtiene recomendaciones basadas en semillas y parámetros de audio.
+        """
+        if not self.client:
+            return None
+
+        try:
+            return self.client.recommendations(
+                seed_artists=seed_artists,
+                seed_genres=seed_genres,
+                seed_tracks=seed_tracks,
+                limit=limit,
+                **kwargs,
+            )
+        except spotipy.SpotifyException as e:
+            logger.error(f"Error en recomendaciones de Spotify: {e}")
+            self._handle_spotify_exception(e)
+            return None
+
+    def create_playlist(
+        self,
+        name: str,
+        public: bool = True,
+        collaborative: bool = False,
+        description: str = "",
+    ):
+        """
+        Crea una nueva playlist en la cuenta del usuario.
+        """
+        if not self.client:
+            return None
+
+        try:
+            user_id = self.client.current_user()["id"]
+            return self.client.user_playlist_create(
+                user=user_id,
+                name=name,
+                public=public,
+                collaborative=collaborative,
+                description=description,
+            )
+        except spotipy.SpotifyException as e:
+            logger.error(f"Error al crear playlist: {e}")
+            self._handle_spotify_exception(e)
+            return None
+
+    def add_tracks_to_playlist(self, playlist_id: str, track_uris: list[str]):
+        """
+        Añade canciones a una playlist existente.
+        """
+        if not self.client:
+            return None
+
+        try:
+            return self.client.playlist_add_items(playlist_id, track_uris)
+        except spotipy.SpotifyException as e:
+            logger.error(f"Error al añadir tracks a la playlist {playlist_id}: {e}")
+            self._handle_spotify_exception(e)
+            return None
+
+    def replace_playlist_tracks(self, playlist_id: str, track_uris: list[str]):
+        """
+        Reemplaza todas las canciones de una playlist por una nueva lista.
+        Útil para actualizar playlists dinámicas de "Mood".
+        """
+        if not self.client:
+            return None
+
+        try:
+            return self.client.playlist_replace_items(playlist_id, track_uris)
+        except spotipy.SpotifyException as e:
+            logger.error(
+                f"Error al reemplazar tracks en la playlist {playlist_id}: {e}"
+            )
+            self._handle_spotify_exception(e)
+            return None
+
+    def _handle_spotify_exception(self, e: spotipy.SpotifyException):
+        """
+        Manejo centralizado de excepciones de la API de Spotify.
+        """
+        if e.http_status == HTTP_401_UNAUTHORIZED:
+            logger.warning(
+                "Token expirado detectado durante la operación. Intentando refrescar..."
+            )
+            self.token = self._get_valid_token()
+            if self.token:
+                self.client = spotipy.Spotify(auth=self.token.token)
+        elif e.http_status == HTTP_429_TOO_MANY_REQUESTS:
+            retry_after = e.headers.get("Retry-After", "desconocido")
+            logger.error(
+                f"Límite de tasa (Rate Limit) alcanzado. Reintentar después de {retry_after}s."
+            )
+        else:
+            logger.error(f"Error de Spotify API ({e.http_status}): {e.msg}")
 
     @staticmethod
     def verify_api_connection():
