@@ -1,0 +1,8 @@
+# Benchmark Weights Summary
+
+Global winner: accuracy=0.7000, reward=0.3000, robust_score=0.6545, alpha=1.000
+
+| rank | w_accuracy | w_reward | runs | comp_mean | comp_std | robust_score | best_comp | worst_comp |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 0.7000 | 0.3000 | 2 | 0.6593 | 0.0048 | 0.6545 | 0.6640 | 0.6545 |
+| 2 | 0.8000 | 0.2000 | 2 | 0.6414 | 0.0050 | 0.6364 | 0.6464 | 0.6364 |

@@ -3,6 +3,7 @@ API Endpoints para Interactions usando Django-Ninja.
 """
 
 import logging
+from collections import Counter
 from datetime import timedelta
 from typing import Optional
 

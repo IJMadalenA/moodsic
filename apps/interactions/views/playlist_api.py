@@ -94,6 +94,9 @@ def generate_playlist(request, payload: PlaylistGenerateSchema):
             count=count,
             weather_context=weather_context,
             use_context=payload.use_context,
+            news_category=payload.news_category,
+            news_query=payload.news_query,
+            news_limit=payload.news_limit,
         )
 
         logger.info(f"Playlist generada para {request.user.username}")

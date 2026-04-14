@@ -186,6 +186,24 @@ class TestPlaylistAPI:
         assert payload["tracks_count"] == 1
         assert payload["session_id"]
 
+    def test_generate_playlist_rejects_invalid_news_limit(self, client, user):
+        """news_limit fuera del rango permitido debe ser rechazado por validación."""
+        client.force_login(user)
+        response = client.post(
+            "/api/interactions/playlists/generate/",
+            data=json.dumps(
+                {
+                    "name": "Invalid Limit Playlist",
+                    "count": 1,
+                    "news_category": "music",
+                    "news_limit": 0,
+                }
+            ),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 422
+
 
 @pytest.mark.django_db
 class TestDashboardAPI:

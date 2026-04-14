@@ -41,7 +41,7 @@ from ml.reward import get_reward_calculator
 from ml.state_builder import get_state_builder
 from apps.interactions.models import Interaction, InteractionSession
 from apps.music.models import Track
-from apps.context.models import WeatherContext
+from apps.context.models import NewsContext, WeatherContext
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -169,11 +169,24 @@ class TrainingDataBuilder:
                 # Audio features del track
                 audio_features = self._get_track_audio_features(interaction.track)
 
+                news_contexts = []
+                if interaction.news_ids:
+                    news_items = NewsContext.objects.filter(id__in=interaction.news_ids)
+                    news_contexts = [
+                        {
+                            "sentiment_score": item.sentiment_score,
+                            "sentiment_label": item.sentiment_label,
+                            "is_breaking": item.is_breaking,
+                        }
+                        for item in news_items
+                    ]
+
                 state = self.state_builder.build_state(
                     user=interaction.user,
                     weather_context=weather_context,
                     current_track=audio_features,
                     time_of_day=self._get_time_of_day(interaction.started_at),
+                    news_contexts=news_contexts,
                 )
 
                 states.append(state)

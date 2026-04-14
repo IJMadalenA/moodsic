@@ -2,9 +2,10 @@
 Schemas para API de Interactions usando Django-Ninja.
 """
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from ninja import Schema
+from pydantic import Field
 
 
 class InteractionCreateSchema(Schema):
@@ -82,6 +83,15 @@ class PlaylistGenerateSchema(Schema):
     count: int = 10  # Número de canciones
     weather_id: Optional[int] = None
     use_context: bool = True
+    news_category: Literal[
+        "general",
+        "music",
+        "markets",
+        "sports",
+        "politics",
+    ] = "general"
+    news_query: Optional[str] = None
+    news_limit: int = Field(20, ge=1, le=50)
 
 
 class PlaylistGenerateResponseSchema(Schema):

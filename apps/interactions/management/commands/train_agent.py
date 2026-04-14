@@ -7,20 +7,16 @@ Ejemplos:
     python manage.py train_agent --episodes 100
     python manage.py train_agent --episodes 50 --days 30 --batch-size 64 --save
     python manage.py train_agent --episodes 10 --visualize
+    python manage.py train_agent --with-synthetic-context --episodes 20
 """
 
-import json
 import logging
-from datetime import datetime, timedelta
-from pathlib import Path
 
+from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
-from django.utils import timezone
 
 from ml.agent import get_agent
-from ml.reward import get_reward_calculator
-from ml.state_builder import get_state_builder
-from ml.training import TrainingDataLoader, ModelTrainer, ModelEvaluator
+from ml.training import ModelTrainer
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +64,47 @@ class Command(BaseCommand):
             action="store_true",
             help="Mostrar logs detallados",
         )
+        parser.add_argument(
+            "--with-synthetic-context",
+            action="store_true",
+            help="Seed de contexto e interacciones sintéticas antes de entrenar",
+        )
+        parser.add_argument(
+            "--synthetic-users",
+            type=int,
+            default=3,
+            help="Usuarios sintéticos para el seed offline (default: 3)",
+        )
+        parser.add_argument(
+            "--synthetic-tracks",
+            type=int,
+            default=30,
+            help="Tracks sintéticos para el seed offline (default: 30)",
+        )
+        parser.add_argument(
+            "--synthetic-interactions",
+            type=int,
+            default=600,
+            help="Interacciones sintéticas para el seed offline (default: 600)",
+        )
+        parser.add_argument(
+            "--synthetic-weather",
+            type=int,
+            default=60,
+            help="Registros de clima sintético (default: 60)",
+        )
+        parser.add_argument(
+            "--synthetic-news",
+            type=int,
+            default=120,
+            help="Registros de noticias sintéticas (default: 120)",
+        )
+        parser.add_argument(
+            "--seed",
+            type=int,
+            default=42,
+            help="Semilla para generación sintética reproducible",
+        )
 
     def handle(self, *args, **options):
         episodes = options["episodes"]
@@ -76,6 +113,7 @@ class Command(BaseCommand):
         save_model = options["save"]
         verbose = options["verbose"]
         visualize = options["visualize"]
+        with_synthetic_context = options["with_synthetic_context"]
 
         # Configurar logging
         log_level = logging.DEBUG if verbose else logging.INFO
@@ -88,61 +126,71 @@ class Command(BaseCommand):
         self.stdout.write(f"    [CONFIG] Batch size: {batch_size}")
 
         try:
-            # 1. Cargar datos
-            self.stdout.write("\n[LOAD] Cargando datos de interacciones...")
-            data_loader = TrainingDataLoader()
-            interactions = data_loader.load_interactions(days=days)
+            if with_synthetic_context:
+                self.stdout.write("\n[SEED] Generando contexto sintético offline...")
+                call_command(
+                    "seed_synthetic_context",
+                    weather_count=options["synthetic_weather"],
+                    news_count=options["synthetic_news"],
+                    days_back=max(days, 7),
+                    seed=options["seed"],
+                    clear_existing=True,
+                )
+                self.stdout.write(self.style.SUCCESS("   [OK] Contexto sintético generado"))
 
-            self.stdout.write(
-                self.style.SUCCESS(f"   [OK] {len(interactions)} interacciones cargadas")
-            )
+                self.stdout.write("\n[SEED] Generando interacciones sintéticas...")
+                call_command(
+                    "seed_synthetic_interactions",
+                    users=options["synthetic_users"],
+                    tracks=options["synthetic_tracks"],
+                    interactions=options["synthetic_interactions"],
+                    seed=options["seed"],
+                )
+                self.stdout.write(self.style.SUCCESS("   [OK] Interacciones sintéticas generadas"))
 
-            # 2. Inicializar componentes
+            # 1. Inicializar componentes
             self.stdout.write("\n[INIT] Inicializando componentes RL...")
             agent = get_agent(state_dim=45, action_dim=100)
-            state_builder = get_state_builder()
-            reward_calculator = get_reward_calculator()
-            self.stdout.write(self.style.SUCCESS("   [OK] Agente, StateBuilder y RewardCalculator listos"))
+            self.stdout.write(self.style.SUCCESS("   [OK] Agente listo"))
 
-            # 3. Entrenar
+            # 2. Entrenar
             self.stdout.write(f"\n[TRAIN] Entrenando por {episodes} episodios...")
-            
+
             trainer = ModelTrainer(
                 agent=agent,
-                state_builder=state_builder,
-                reward_calculator=reward_calculator,
+                episodes=episodes,
                 batch_size=batch_size,
             )
 
-            history = trainer.train_from_interactions(
-                interactions=interactions,
-                episodes=episodes,
-            )
+            trainer.train_from_interactions(days=days)
 
             self.stdout.write(self.style.SUCCESS("   [OK] Entrenamiento completado"))
 
-            # 4. Mostrar resumen
-            if history:
-                avg_loss = sum(history.get("losses", [])) / len(history.get("losses", [1]))
-                avg_reward = sum(history.get("rewards", [])) / len(history.get("rewards", [0]))
-                self.stdout.write(
-                    f"\n[SUMMARY]\n"
-                    f"   Loss promedio: {avg_loss:.4f}\n"
-                    f"   Reward promedio: {avg_reward:.4f}\n"
-                    f"   Epsilon final: {history.get('epsilon', 'N/A')}"
-                )
+            # 3. Mostrar resumen
+            losses = trainer.training_logs.get("episode_losses", [])
+            rewards = trainer.training_logs.get("episode_rewards", [])
+            epsilons = trainer.training_logs.get("epsilon_values", [])
+            avg_loss = (sum(losses) / len(losses)) if losses else 0.0
+            avg_reward = (sum(rewards) / len(rewards)) if rewards else 0.0
+            epsilon_final = epsilons[-1] if epsilons else "N/A"
+            self.stdout.write(
+                f"\n[SUMMARY]\n"
+                f"   Loss promedio: {avg_loss:.4f}\n"
+                f"   Reward promedio: {avg_reward:.4f}\n"
+                f"   Epsilon final: {epsilon_final}"
+            )
 
-            # 5. Guardar si aplica
+            # 4. Guardar si aplica
             if save_model:
                 self.stdout.write("\n[SAVE] Guardando modelo...")
                 model_path = trainer.save_model()
                 self.stdout.write(self.style.SUCCESS(f"   [OK] Modelo guardado: {model_path}"))
 
-            # 6. Visualizar si aplica
+            # 5. Visualizar si aplica
             if visualize:
                 self.stdout.write("\n[PLOT] Generando gráficos...")
                 try:
-                    trainer.plot_training_history(history)
+                    trainer.plot_training_history()
                     self.stdout.write(self.style.SUCCESS("   [OK] Gráficos generados"))
                 except Exception as e:
                     self.stdout.write(

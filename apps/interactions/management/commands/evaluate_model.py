@@ -7,17 +7,20 @@ Ejemplos:
     python manage.py evaluate_model --model-path ml/models/dqn_agent_20260325_225939.h5
     python manage.py evaluate_model --model-path ml/models/model.h5 --test-days 7
     python manage.py evaluate_model --model-path ml/models/model.h5 --show-recommendations
+    python manage.py evaluate_model --with-synthetic-context --auto-train --benchmark-episodes 5
 """
 
+import json
 import logging
+from datetime import datetime
 from pathlib import Path
 
+from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
-from ml.agent import DQNAgent
-from ml.reward import get_reward_calculator
+from apps.interactions.services.reward_service import get_reward_service
 from ml.state_builder import get_state_builder
-from ml.training import TrainingDataLoader, ModelEvaluator
+from ml.training import LOGS_DIR, MODELS_DIR, ModelEvaluator, ModelTrainer, TrainingDataLoader
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +32,20 @@ class Command(BaseCommand):
         parser.add_argument(
             "--model-path",
             type=str,
-            required=True,
-            help="Ruta del modelo a evaluar (ruta obligatoria)",
+            default=None,
+            help="Ruta del modelo a evaluar (si se omite, se busca el último modelo)",
         )
         parser.add_argument(
             "--test-days",
             type=int,
             default=7,
             help="Días de interacciones recientes para prueba (default: 7)",
+        )
+        parser.add_argument(
+            "--test-limit",
+            type=int,
+            default=1000,
+            help="Máximo de interacciones a usar en evaluación (default: 1000)",
         )
         parser.add_argument(
             "--show-recommendations",
@@ -48,80 +57,149 @@ class Command(BaseCommand):
             action="store_true",
             help="Mostrar logs detallados",
         )
+        parser.add_argument(
+            "--with-synthetic-context",
+            action="store_true",
+            help="Seed offline de contexto e interacciones antes de evaluar",
+        )
+        parser.add_argument(
+            "--auto-train",
+            action="store_true",
+            help="Entrenar un modelo rápidamente antes de evaluar (útil con --with-synthetic-context)",
+        )
+        parser.add_argument(
+            "--benchmark-episodes",
+            type=int,
+            default=5,
+            help="Episodios para auto-train en benchmark offline (default: 5)",
+        )
+        parser.add_argument(
+            "--benchmark-output",
+            type=str,
+            default=None,
+            help="Ruta JSON para guardar resultados del benchmark (default: ml/logs)",
+        )
+        parser.add_argument("--seed", type=int, default=42)
+        parser.add_argument("--synthetic-users", type=int, default=3)
+        parser.add_argument("--synthetic-tracks", type=int, default=30)
+        parser.add_argument("--synthetic-interactions", type=int, default=600)
+        parser.add_argument("--synthetic-weather", type=int, default=60)
+        parser.add_argument("--synthetic-news", type=int, default=120)
 
     def handle(self, *args, **options):
         model_path = options["model_path"]
         test_days = options["test_days"]
+        test_limit = options["test_limit"]
         show_recommendations = options["show_recommendations"]
         verbose = options["verbose"]
+        offline = options["with_synthetic_context"]
+        auto_train = options["auto_train"]
 
         # Configurar logging
         log_level = logging.DEBUG if verbose else logging.INFO
         logging.basicConfig(level=log_level)
 
-        self.stdout.write(self.style.SUCCESS(f"\n📊 Evaluando modelo DQN"))
-        self.stdout.write(f"   📁 Modelo: {model_path}")
+        self.stdout.write(self.style.SUCCESS("\n📊 Evaluando modelo DQN"))
 
         try:
-            # 1. Verificar que el modelo existe
-            if not Path(model_path).exists():
-                raise FileNotFoundError(f"Modelo no encontrado: {model_path}")
-
-            self.stdout.write(self.style.SUCCESS(f"   ✅ Archivo encontrado"))
-
-            # 2. Cargar componentes
-            self.stdout.write("\n🧠 Cargando componentes...")
-            state_builder = get_state_builder()
-            reward_calculator = get_reward_calculator()
-
-            # Cargar modelo
-            import tensorflow as tf
-            model = tf.keras.models.load_model(model_path)
-            self.stdout.write(self.style.SUCCESS("   ✅ Modelo cargado"))
-
-            # 3. Cargar datos de prueba
-            self.stdout.write(f"\n📥 Cargando datos de prueba (últimos {test_days} días)...")
-            data_loader = TrainingDataLoader()
-            test_interactions = data_loader.load_interactions(days=test_days)
-
-            if not test_interactions:
-                self.stdout.write(
-                    self.style.WARNING("   ⚠️  No hay interacciones para evaluar, usando sintéticas")
+            if offline:
+                self.stdout.write("\n[SEED] Generando contexto sintético offline...")
+                call_command(
+                    "seed_synthetic_context",
+                    weather_count=options["synthetic_weather"],
+                    news_count=options["synthetic_news"],
+                    days_back=max(test_days, 7),
+                    seed=options["seed"],
+                    clear_existing=True,
                 )
-                # Generar datos sintéticos
-                test_interactions = self._generate_synthetic_data(100)
+                self.stdout.write(self.style.SUCCESS("   ✅ Contexto sintético generado"))
+
+                self.stdout.write("\n[SEED] Generando interacciones sintéticas...")
+                call_command(
+                    "seed_synthetic_interactions",
+                    users=options["synthetic_users"],
+                    tracks=options["synthetic_tracks"],
+                    interactions=options["synthetic_interactions"],
+                    seed=options["seed"],
+                )
+                self.stdout.write(self.style.SUCCESS("   ✅ Interacciones sintéticas generadas"))
+
+            if auto_train:
+                self.stdout.write("\n[TRAIN] Entrenando modelo rápido para benchmark...")
+                trainer = ModelTrainer(
+                    episodes=options["benchmark_episodes"],
+                    batch_size=64,
+                )
+                trainer.train_from_interactions(days=max(test_days, 7))
+                trainer.save_model(model_name="dqn_benchmark")
+                model_path = self._resolve_model_path(None)
+                self.stdout.write(self.style.SUCCESS(f"   ✅ Modelo benchmark: {model_path}"))
+
+            model_path = self._resolve_model_path(model_path)
+            self.stdout.write(f"   📁 Modelo: {model_path}")
+
+            self.stdout.write(f"\n📥 Cargando datos de prueba (últimos {test_days} días)...")
+            test_interactions = TrainingDataLoader.load_interactions(
+                days=test_days,
+                limit=test_limit,
+            )
+            if not test_interactions:
+                raise CommandError(
+                    "No hay interacciones para evaluar. Ejecuta seed_synthetic_interactions o usa --with-synthetic-context."
+                )
 
             self.stdout.write(
                 self.style.SUCCESS(f"   ✅ {len(test_interactions)} interacciones para prueba")
             )
 
-            # 4. Evaluar
             self.stdout.write("\n🔍 Evaluando modelo...")
-            evaluator = ModelEvaluator(
-                model=model,
-                state_builder=state_builder,
-                reward_calculator=reward_calculator,
+            evaluator = ModelEvaluator(model_path)
+            metrics = evaluator.evaluate_on_test_set(test_interactions)
+            mean_reward = (
+                sum(inter.reward for inter in test_interactions) / len(test_interactions)
+                if test_interactions
+                else 0.0
             )
 
-            metrics = evaluator.evaluate_on_test_set(test_interactions)
-
-            # 5. Mostrar resultados
             self.stdout.write(
                 f"\n📈 Resultados de evaluación:\n"
                 f"   Accuracy: {metrics.get('accuracy', 'N/A')}\n"
-                f"   Mean Reward: {metrics.get('mean_reward', 'N/A')}\n"
-                f"   Total Interactions: {metrics.get('total_interactions', len(test_interactions))}"
+                f"   Mean Reward (dataset): {mean_reward:.4f}\n"
+                f"   Total Samples: {metrics.get('total_samples', len(test_interactions))}"
             )
 
-            # 6. Mostrar recomendaciones si aplica
+            benchmark_data = {
+                "timestamp": datetime.now().isoformat(),
+                "model_path": str(model_path),
+                "options": {
+                    "test_days": test_days,
+                    "test_limit": test_limit,
+                    "with_synthetic_context": offline,
+                    "auto_train": auto_train,
+                    "benchmark_episodes": options["benchmark_episodes"],
+                    "seed": options["seed"],
+                },
+                "metrics": {
+                    **metrics,
+                    "mean_reward_dataset": float(mean_reward),
+                },
+            }
+            output_path = self._write_benchmark_json(
+                benchmark_data,
+                output=options["benchmark_output"],
+            )
+            self.stdout.write(self.style.SUCCESS(f"   ✅ Benchmark guardado: {output_path}"))
+
+            # Mostrar recomendaciones si aplica
             if show_recommendations:
                 self.stdout.write("\n🎵 Top-10 Recomendaciones del Modelo:")
-                recommendations = evaluator.recommend_tracks(
-                    state=self._get_sample_state(state_builder),
-                    k=10,
-                )
+                sample_user = self._get_sample_user()
+                recommendations = evaluator.recommend_tracks(sample_user, count=10)
                 for i, rec in enumerate(recommendations, 1):
-                    self.stdout.write(f"   {i}. Track ID: {rec} (Q-value: N/A)")
+                    track, score = rec
+                    self.stdout.write(
+                        f"   {i}. Track ID: {track.id} | {track.name} (score={score:.4f})"
+                    )
 
             self.stdout.write(
                 self.style.SUCCESS("\n✅ Evaluación completada exitosamente!\n")
@@ -134,59 +212,38 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"\n❌ Error durante la evaluación:\n{str(e)}\n"))
             raise CommandError(str(e))
 
-    def _generate_synthetic_data(self, count: int):
-        """Genera datos sintéticos para pruebas."""
-        import numpy as np
-        from datetime import datetime, timedelta
+    @staticmethod
+    def _resolve_model_path(model_path: str | None) -> str:
+        if model_path:
+            if not Path(model_path).exists():
+                raise FileNotFoundError(f"Modelo no encontrado: {model_path}")
+            return model_path
 
-        from apps.interactions.models import Interaction
-        from apps.music.models import Track, Album
-        from django.contrib.auth import get_user_model
-
-        User = get_user_model()
-
-        # Obtener usuario de prueba
-        user = User.objects.first()
-        if not user:
-            user = User.objects.create_user(username="test_eval", password="test123")
-
-        # Obtener o crear album/track
-        album, _ = Album.objects.get_or_create(name="Test Album Eval")
-        track, _ = Track.objects.get_or_create(
-            spotify_id="test_track_eval",
-            defaults={
-                "name": "Test Track",
-                "album": album,
-                "duration_ms": 180000,
-                "explicit": False,
-                "track_number": 1,
-                "popularity": 80,
-            },
-        )
-
-        # Crear interacciones sintéticas
-        interactions = []
-        for i in range(count):
-            interaction = Interaction(
-                user=user,
-                track=track,
-                feedback=np.random.choice(["completed", "skip", "replay"]),
-                play_duration=np.random.randint(30, 180),
-                track_duration=180,
-                reward=float(np.random.uniform(-1, 1)),
-                started_at=datetime.now() - timedelta(days=np.random.randint(0, 7)),
+        model_files = sorted(MODELS_DIR.glob("*.h5"), reverse=True)
+        if not model_files:
+            raise FileNotFoundError(
+                "No se encontró ningún modelo .h5 en ml/models. Usa --auto-train o --model-path."
             )
-            interactions.append(interaction)
+        return str(model_files[0])
 
-        return interactions
+    @staticmethod
+    def _write_benchmark_json(payload: dict, output: str | None = None) -> str:
+        if output:
+            output_path = Path(output)
+        else:
+            output_path = LOGS_DIR / f"evaluation_benchmark_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
 
-    def _get_sample_state(self, state_builder):
-        """Obtiene un estado de muestra del sistema."""
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+        return str(output_path)
+
+    @staticmethod
+    def _get_sample_user():
         from django.contrib.auth import get_user_model
 
         User = get_user_model()
         user = User.objects.first()
-
-        if user:
-            return state_builder.build_state(user=user)
-        return None
+        if user is None:
+            raise CommandError("No hay usuarios disponibles para mostrar recomendaciones")
+        return user

@@ -12,16 +12,33 @@ from django.contrib.auth import get_user_model
 from django.db.models import Avg, Sum
 from django.utils import timezone
 
-from apps.context.models import WeatherContext
+from apps.context.models import NewsContext, WeatherContext
+from apps.context.services.news_service import NewsService
 from apps.music.models import Track, Playlist, PlaylistTrack
 from apps.music.services.spotify_music_service import SpotifyMusicService
+from apps.interactions.services.reward_service import get_reward_service
 from ml.agent import get_agent
-from ml.reward import get_reward_calculator
 from ml.state_builder import get_state_builder
 
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
+
+ALLOWED_NEWS_CATEGORIES = {
+    "general",
+    "music",
+    "markets",
+    "sports",
+    "politics",
+}
+
+DEFAULT_NEWS_QUERIES = {
+    "general": "world OR society OR culture",
+    "music": "music OR entertainment OR artists",
+    "markets": "stock market OR economy OR inflation",
+    "sports": "sports OR football OR basketball",
+    "politics": "politics OR government OR election",
+}
 
 
 class PlaylistGenerationService:
@@ -38,7 +55,7 @@ class PlaylistGenerationService:
     def __init__(self):
         """Inicializa el servicio."""
         self.agent = get_agent()
-        self.reward_calculator = get_reward_calculator()
+        self.reward_service = get_reward_service()
         self.state_builder = get_state_builder()
 
     def generate_playlist(
@@ -48,6 +65,9 @@ class PlaylistGenerationService:
         count: int = 10,
         weather_context: Optional[Dict] = None,
         use_context: bool = True,
+        news_category: str = "general",
+        news_query: Optional[str] = None,
+        news_limit: int = 20,
     ) -> Dict:
         """
         Genera una playlist personalizada para el usuario.
@@ -93,11 +113,33 @@ class PlaylistGenerationService:
             )
 
             # Construir estado inicial
+            news_category = self._normalize_news_category(news_category)
+            effective_query = (news_query or "").strip() or DEFAULT_NEWS_QUERIES[
+                news_category
+            ]
+
+            if effective_query:
+                try:
+                    NewsService.fetch_and_store_news(
+                        query=effective_query,
+                        category=news_category,
+                        page_size=max(5, min(news_limit, 50)),
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        f"No se pudo refrescar noticias para query '{effective_query}': {exc}"
+                    )
+
+            news_contexts = self._get_latest_news_contexts(
+                category=news_category,
+                limit=news_limit,
+            )
             state = self.state_builder.build_state(
                 user=user,
                 weather_context=weather_context,
                 current_track=None,
                 time_of_day=self._get_time_of_day(),
+                news_contexts=news_contexts,
             )
 
             # Seleccionar tracks usando el agente
@@ -126,6 +168,7 @@ class PlaylistGenerationService:
                     weather_context=weather_context,
                     current_track=track_features,
                     time_of_day=self._get_time_of_day(),
+                    news_contexts=news_contexts,
                 )
 
             # Crear playlist en BD
@@ -232,14 +275,15 @@ class PlaylistGenerationService:
             # Obtener historico del usuario
             user_history = self._get_user_history(user)
 
-            # Calcular reward
-            reward = self.reward_calculator.calculate_reward(
+            # Calcular reward desde la capa de dominio de interactions
+            reward = self.reward_service.calculate_interaction_reward(
                 user_feedback=feedback,
-                weather_context=weather_context,
-                track_audio_features=audio_features,
+                user=user,
+                track=track,
+                weather_id=weather_id,
+                news_ids=news_ids,
                 user_history=user_history,
             )
-            reward = self.reward_calculator.normalize_reward(reward)
 
             # Guardar interacción
             interaction = Interaction.objects.create(
@@ -255,7 +299,23 @@ class PlaylistGenerationService:
             )
 
             # Guardar la experiencia en el replay buffer del agente para entrenamient futuro
-            state = self.state_builder.build_state(user, weather_context, audio_features)
+            news_contexts = []
+            if news_ids:
+                news_contexts = [
+                    {
+                        "sentiment_score": n.sentiment_score,
+                        "sentiment_label": n.sentiment_label,
+                        "is_breaking": n.is_breaking,
+                    }
+                    for n in NewsContext.objects.filter(id__in=news_ids)
+                ]
+
+            state = self.state_builder.build_state(
+                user,
+                weather_context,
+                audio_features,
+                news_contexts=news_contexts,
+            )
             # Aquí iría la acción (track index) pero se omite para no complicar
 
             logger.info(f"Interacción guardada: {interaction.id}, Reward: {reward}")
@@ -486,6 +546,31 @@ class PlaylistGenerationService:
             self._score_track(track, weather_context, user_history)
             for track in tracks
         ]
+
+    @staticmethod
+    def _get_latest_news_contexts(
+        category: str = "general", limit: int = 20
+    ) -> List[Dict]:
+        """Return compact latest news context used by the state builder."""
+        queryset = NewsContext.objects.order_by("-published_at")
+        if category and category != "all":
+            queryset = queryset.filter(category=category)
+        news_items = queryset[: max(1, min(limit, 50))]
+        return [
+            {
+                "sentiment_score": item.sentiment_score,
+                "sentiment_label": item.sentiment_label,
+                "is_breaking": item.is_breaking,
+            }
+            for item in news_items
+        ]
+
+    @staticmethod
+    def _normalize_news_category(category: str) -> str:
+        normalized = (category or "general").strip().lower()
+        if normalized not in ALLOWED_NEWS_CATEGORIES:
+            return "general"
+        return normalized
 
     def _score_track(
         self,

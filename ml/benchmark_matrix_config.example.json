@@ -1,0 +1,20 @@
+{
+  "seeds": [101, 202, 303, 404, 505],
+  "weights": [
+    [0.7, 0.3],
+    [0.8, 0.2],
+    [0.6, 0.4]
+  ],
+  "alphas": [0.25, 0.5, 1.0],
+  "summary_limit": 200,
+  "test_days": 7,
+  "test_limit": 1000,
+  "benchmark_episodes": 5,
+  "synthetic_users": 3,
+  "synthetic_tracks": 30,
+  "synthetic_interactions": 600,
+  "synthetic_weather": 60,
+  "synthetic_news": 120,
+  "skip_runs": true,
+  "run_name": "smoke"
+}

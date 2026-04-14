@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-04-15T00:04:49.098705",
+  "model_path": "ml\\models\\dqn_benchmark_20260415_000445.h5",
+  "options": {
+    "test_days": 7,
+    "test_limit": 1000,
+    "with_synthetic_context": true,
+    "auto_train": true,
+    "benchmark_episodes": 2,
+    "seed": 222
+  },
+  "metrics": {
+    "accuracy": 0.611,
+    "total_samples": 1000,
+    "correct_predictions": 611,
+    "mean_reward_dataset": 1.15132
+  }
+}

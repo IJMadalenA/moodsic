@@ -12,10 +12,12 @@ class ContextConfig(AppConfig):
 
         model_classes = [
             models.WeatherContext,
+            models.NewsContext,
         ]
 
         admin_classes = [
             admin.WeatherContextAdmin,
+            admin.NewsContextAdmin,
             admin.CityAdmin,
             admin.RegionAdmin,
             admin.CountryAdmin,

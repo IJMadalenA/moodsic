@@ -72,6 +72,7 @@ class StateBuilder:
         weather_context: Optional[Dict] = None,
         current_track: Optional[Dict] = None,
         time_of_day: Optional[str] = None,
+        news_contexts: Optional[List[Dict]] = None,
     ) -> np.ndarray:
         """
         Construye el vector de estado completo.
@@ -108,7 +109,7 @@ class StateBuilder:
         state_components.append(user_vec)
 
         # 4. Features de contexto temporal (15 features: hora, día, estación)
-        context_vec = self._extract_context_features(time_of_day)
+        context_vec = self._extract_context_features(time_of_day, news_contexts)
         state_components.append(context_vec)
 
         # Concatenar todos los componentes
@@ -288,7 +289,11 @@ class StateBuilder:
 
         return np.array(features[:self.user_history_dim], dtype=np.float32)
 
-    def _extract_context_features(self, time_of_day: Optional[str]) -> np.ndarray:
+    def _extract_context_features(
+        self,
+        time_of_day: Optional[str],
+        news_contexts: Optional[List[Dict]] = None,
+    ) -> np.ndarray:
         """
         Extrae features contextuales: hora del día, día de la semana, temporada.
         
@@ -333,11 +338,36 @@ class StateBuilder:
         # Es festivo/fin de semana
         features.append(is_weekend)
 
+        # Agregar señales de noticias en vivo (sentimiento, breaking, volumen)
+        news_vec = self._extract_news_features(news_contexts)
+        features.extend(news_vec)
+
         # Hora de pico esperada
         is_peak_hour = float(hour in [8, 9, 17, 18, 19])  # Horas común de peak
         features.append(is_peak_hour)
 
         return np.array(features[:self.context_embedding_dim], dtype=np.float32)
+
+    @staticmethod
+    def _extract_news_features(news_contexts: Optional[List[Dict]]) -> List[float]:
+        """Return compact news-derived features for the context embedding."""
+        if not news_contexts:
+            return [0.5, 0.0, 0.0]
+
+        sentiment_values = [
+            float(item.get("sentiment_score", 0.0))
+            for item in news_contexts
+        ]
+        avg_sentiment = sum(sentiment_values) / len(sentiment_values)
+        # Map [-1, 1] sentiment into [0, 1]
+        norm_sentiment = max(0.0, min(1.0, (avg_sentiment + 1.0) / 2.0))
+
+        breaking_ratio = sum(
+            1 for item in news_contexts if item.get("is_breaking")
+        ) / float(len(news_contexts))
+
+        norm_news_volume = min(1.0, len(news_contexts) / 20.0)
+        return [norm_sentiment, breaking_ratio, norm_news_volume]
 
     @staticmethod
     def _normalize(value: float, range_dict: Dict) -> float:
