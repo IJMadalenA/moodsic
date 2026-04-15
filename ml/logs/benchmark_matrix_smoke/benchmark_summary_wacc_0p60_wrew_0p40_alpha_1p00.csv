@@ -1,3 +1,0 @@
-file,timestamp,accuracy,delta_accuracy,trend_accuracy,mean_reward,delta_mean_reward,trend_mean_reward,composite_score,composite_rank,config_key,samples,seed,auto_train,synthetic,benchmark_episodes,test_limit,test_days
-evaluation_benchmark_seed_222.json,2026-04-15T00:04:49.098705,0.6110,+0.0110,UP,1.1513,+0.0241,UP,0.6817,1,d7_l1000_e2_synthTrue_trainTrue,1000,222,True,True,2,1000,7
-evaluation_benchmark_seed_111.json,2026-04-15T00:02:47.906514,0.6000,N/A,N/A,1.1273,N/A,N/A,0.6727,2,d7_l1000_e2_synthTrue_trainTrue,1000,111,True,True,2,1000,7

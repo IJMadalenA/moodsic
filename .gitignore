@@ -192,6 +192,10 @@ cython_debug/
 # Ruff stuff:
 .ruff_cache/
 
+# Local ML artifacts and experiment outputs
+ml/logs/
+ml/models/
+
 # PyPI configuration file
 .pypirc
 
