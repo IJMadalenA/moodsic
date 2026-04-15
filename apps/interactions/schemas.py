@@ -107,6 +107,11 @@ class PlaylistGenerateResponseSchema(Schema):
     track_names: List[str]
     estimated_duration: int  # En segundos
     created_at: str
+    mode: Literal["online", "fallback", "hybrid"]
+    used_spotify_sync: bool
+    used_cached_news: bool
+    used_local_catalog: bool
+    used_spotify_catalog_fallback: bool
 
 
 class DashboardMetricsSchema(Schema):

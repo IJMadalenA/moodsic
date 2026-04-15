@@ -45,7 +45,8 @@ class NewsService:
         language: str = "en",
         page_size: int = 20,
         category: str = "general",
-    ) -> list[dict]:
+        return_meta: bool = False,
+    ) -> list[dict] | tuple[list[dict], dict]:
         """Fetch latest news from NewsAPI and return normalized dictionaries."""
         category = cls._normalize_category(category)
 
@@ -60,7 +61,13 @@ class NewsService:
             logger.warning(
                 "NEWSAPI_KEY is not configured; using cached local news when available"
             )
-            return cls._get_cached_news(category=category, limit=page_size)
+            cached_items = cls._get_cached_news(category=category, limit=page_size)
+            if return_meta:
+                return cached_items, {
+                    "used_cached_news": bool(cached_items),
+                    "news_source": "cache",
+                }
+            return cached_items
 
         params = {
             "q": query,
@@ -76,7 +83,13 @@ class NewsService:
             payload = response.json()
         except requests.RequestException as exc:
             logger.warning(f"News provider unavailable, using cached news fallback: {exc}")
-            return cls._get_cached_news(category=category, limit=page_size)
+            cached_items = cls._get_cached_news(category=category, limit=page_size)
+            if return_meta:
+                return cached_items, {
+                    "used_cached_news": bool(cached_items),
+                    "news_source": "cache",
+                }
+            return cached_items
 
         articles = payload.get("articles", [])
         normalized: list[dict] = []
@@ -106,7 +119,13 @@ class NewsService:
                 }
             )
 
-        return normalized or cls._get_cached_news(category=category, limit=page_size)
+        result = normalized or cls._get_cached_news(category=category, limit=page_size)
+        if return_meta:
+            return result, {
+                "used_cached_news": not bool(normalized),
+                "news_source": "provider" if normalized else "cache",
+            }
+        return result
 
     @classmethod
     def fetch_and_store_news(
@@ -115,13 +134,15 @@ class NewsService:
         language: str = "en",
         page_size: int = 20,
         category: str = "general",
-    ) -> list[NewsContext]:
+        return_meta: bool = False,
+    ) -> list[NewsContext] | tuple[list[NewsContext], dict]:
         """Fetch news from provider and store unique items by URL."""
-        items = cls.fetch_latest_news(
+        items, meta = cls.fetch_latest_news(
             query=query,
             language=language,
             page_size=page_size,
             category=category,
+            return_meta=True,
         )
         saved: list[NewsContext] = []
         for item in items:
@@ -130,6 +151,8 @@ class NewsService:
                 defaults=item,
             )
             saved.append(obj)
+        if return_meta:
+            return saved, meta
         return saved
 
     @classmethod

@@ -185,6 +185,11 @@ class TestPlaylistAPI:
         assert payload["playlist_name"] == "Morning Playlist"
         assert payload["tracks_count"] == 1
         assert payload["session_id"]
+        assert payload["mode"] in {"online", "fallback", "hybrid"}
+        assert isinstance(payload["used_spotify_sync"], bool)
+        assert isinstance(payload["used_cached_news"], bool)
+        assert isinstance(payload["used_local_catalog"], bool)
+        assert isinstance(payload["used_spotify_catalog_fallback"], bool)
 
     def test_generate_playlist_rejects_invalid_news_limit(self, client, user):
         """news_limit fuera del rango permitido debe ser rechazado por validación."""

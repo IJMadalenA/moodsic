@@ -93,8 +93,16 @@ class PlaylistGenerationService:
             # Crear sesión única
             session_id = str(uuid.uuid4())
 
-            # Obtener tracks disponibles
-            available_tracks = self._get_available_tracks(user)
+            # Obtener tracks disponibles y registrar su procedencia
+            available_tracks, source_meta = self._get_available_tracks_with_meta(user)
+            generation_meta = {
+                "used_spotify_sync": False,
+                "used_cached_news": False,
+                "used_local_catalog": source_meta["used_local_catalog"],
+                "used_spotify_catalog_fallback": source_meta[
+                    "used_spotify_catalog_fallback"
+                ],
+            }
 
             if len(available_tracks) == 0:
                 raise ValueError("No hay canciones disponibles para generar playlist")
@@ -122,12 +130,17 @@ class PlaylistGenerationService:
 
             if effective_query:
                 try:
-                    NewsService.fetch_and_store_news(
+                    _, news_meta = NewsService.fetch_and_store_news(
                         query=effective_query,
                         category=news_category,
                         page_size=max(5, min(news_limit, 50)),
+                        return_meta=True,
+                    )
+                    generation_meta["used_cached_news"] = bool(
+                        news_meta.get("used_cached_news", False)
                     )
                 except Exception as exc:
+                    generation_meta["used_cached_news"] = True
                     logger.warning(
                         f"No se pudo refrescar noticias para query '{effective_query}': {exc}"
                     )
@@ -194,6 +207,7 @@ class PlaylistGenerationService:
                         playlist.spotify_id = spotify_playlist.get("id", f"moodsic_{session_id}")
                         playlist.uri = spotify_playlist.get("uri", "")
                         playlist.save()
+                        generation_meta["used_spotify_sync"] = True
                         logger.info(
                             f"Playlist sincronizada con Spotify: {spotify_playlist.get('id')}"
                         )
@@ -216,6 +230,13 @@ class PlaylistGenerationService:
                 // 1000,
                 "session_id": session_id,
                 "created_at": timezone.now().isoformat(),
+                "mode": self._resolve_generation_mode(generation_meta),
+                "used_spotify_sync": generation_meta["used_spotify_sync"],
+                "used_cached_news": generation_meta["used_cached_news"],
+                "used_local_catalog": generation_meta["used_local_catalog"],
+                "used_spotify_catalog_fallback": generation_meta[
+                    "used_spotify_catalog_fallback"
+                ],
             }
 
         except Exception as e:
@@ -385,25 +406,36 @@ class PlaylistGenerationService:
     def _get_available_tracks(
         self, user: User, limit: int = 500
     ) -> List[Track]:
-        """
-        Obtiene tracks disponibles para seleccionar.
+        tracks, _meta = self._get_available_tracks_with_meta(user, limit=limit)
+        return tracks
 
-        Prioridad:
-        1. catálogo local ya sincronizado
-        2. hidratación desde Spotify si el usuario está conectado
+    def _get_available_tracks_with_meta(
+        self, user: User, limit: int = 500
+    ) -> Tuple[List[Track], Dict[str, bool]]:
+        """
+        Obtiene tracks disponibles para seleccionar y registra su procedencia.
         """
         max_tracks = min(limit, self.agent.action_dim)
         local_tracks = list(
             Track.objects.prefetch_related("artists").all()[:max_tracks]
         )
         if local_tracks:
-            return local_tracks
+            return local_tracks, {
+                "used_local_catalog": True,
+                "used_spotify_catalog_fallback": False,
+            }
 
         hydrated_tracks = self._hydrate_tracks_from_spotify(user, limit=max_tracks)
         if hydrated_tracks:
-            return hydrated_tracks[:max_tracks]
+            return hydrated_tracks[:max_tracks], {
+                "used_local_catalog": False,
+                "used_spotify_catalog_fallback": True,
+            }
 
-        return []
+        return [], {
+            "used_local_catalog": False,
+            "used_spotify_catalog_fallback": False,
+        }
 
     def _hydrate_tracks_from_spotify(self, user: User, limit: int = 100) -> List[Track]:
         """Populate the local catalog from Spotify as an online fallback."""
@@ -739,6 +771,21 @@ class PlaylistGenerationService:
         return (context_score * self.context_weight) + (
             history_score * self.history_weight
         )
+
+    @staticmethod
+    def _resolve_generation_mode(generation_meta: Dict[str, bool]) -> str:
+        online_signals = bool(generation_meta.get("used_spotify_sync")) or bool(
+            generation_meta.get("used_spotify_catalog_fallback")
+        )
+        fallback_signals = bool(generation_meta.get("used_cached_news")) or bool(
+            generation_meta.get("used_local_catalog")
+        )
+
+        if online_signals and fallback_signals:
+            return "hybrid"
+        if online_signals:
+            return "online"
+        return "fallback"
 
     def get_user_favorite_artists(self, user: User) -> List[str]:
         """Retorna los artistas favoritos del usuario."""
