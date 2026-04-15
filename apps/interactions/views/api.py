@@ -5,12 +5,12 @@ API Endpoints para Interactions usando Django-Ninja.
 import logging
 from collections import Counter
 from datetime import timedelta
-from typing import Optional
 
 from django.contrib.auth import get_user_model
-from django.db.models import Avg, Count, Sum
+from django.db.models import Count, Sum
 from django.utils import timezone
 from ninja import Router
+from ninja.responses import Response
 
 from apps.interactions.models import Interaction, InteractionSession
 from apps.interactions.schemas import (
@@ -19,8 +19,6 @@ from apps.interactions.schemas import (
     InteractionResponseSchema,
     SessionStatsSchema,
     UserStatsSchema,
-    PlaylistGenerateSchema,
-    PlaylistGenerateResponseSchema,
 )
 from apps.interactions.services.playlist_generation_service import (
     get_playlist_generation_service,
@@ -42,37 +40,69 @@ router = Router()
 def create_interaction(request, payload: InteractionCreateSchema):
     """
     Crea un registro de interacción usuario-track.
-    
+
     **Campos:**
     - track_id: ID del track
     - feedback: 'completed', 'skip', 'skip_immediate', 'replay', 'added_to_playlist'
     - play_duration: Segundos reproducidos
     - track_duration: Duración total del track
     - session_id: ID de la sesión (opcional)
-    
+
     **Retorna:** InteractionResponseSchema
     """
+    if not request.user.is_authenticated:
+        return Response(
+            {
+                "error": "Autenticación requerida",
+                "message": "Inicia sesión para registrar interacciones del usuario.",
+            },
+            status=401,
+        )
+
     try:
-        # Validar que el track existe
         track = Track.objects.get(id=payload.track_id)
     except Track.DoesNotExist:
-        return {"error": "Track no encontrado"}, 404
+        return Response(
+            {
+                "error": "Track no encontrado",
+                "message": "El track indicado no existe en el catálogo local.",
+            },
+            status=404,
+        )
 
     service = get_playlist_generation_service()
 
-    result = service.record_interaction(
-        user=request.user,
-        track=track,
-        feedback=payload.feedback,
-        play_duration=payload.play_duration,
-        track_duration=payload.track_duration,
-        session_id=payload.session_id,
-        weather_id=payload.weather_id,
-        news_ids=payload.news_ids,
-    )
+    try:
+        result = service.record_interaction(
+            user=request.user,
+            track=track,
+            feedback=payload.feedback,
+            play_duration=payload.play_duration,
+            track_duration=payload.track_duration,
+            session_id=payload.session_id,
+            weather_id=payload.weather_id,
+            news_ids=payload.news_ids,
+        )
 
-    # Crear response
-    interaction = Interaction.objects.get(id=result["interaction_id"])
+        interaction = Interaction.objects.get(id=result["interaction_id"])
+    except ValueError as exc:
+        logger.warning("Interacción rechazada: %s", exc)
+        return Response(
+            {
+                "error": "No se pudo registrar la interacción",
+                "message": str(exc),
+            },
+            status=400,
+        )
+    except Exception as exc:
+        logger.error("Error inesperado registrando interacción: %s", exc, exc_info=True)
+        return Response(
+            {
+                "error": "Error interno registrando la interacción",
+                "message": "Vuelve a intentarlo en unos segundos.",
+            },
+            status=500,
+        )
 
     return {
         "id": interaction.id,
@@ -95,7 +125,7 @@ def create_interaction(request, payload: InteractionCreateSchema):
 def get_user_stats(request):
     """
     Obtiene estadísticas del usuario autenticado.
-    
+
     **Retorna:** UserStatsSchema con:
     - total_interactions
     - skip_rate
@@ -104,6 +134,15 @@ def get_user_stats(request):
     - favorite_genres
     - favorite_artists
     """
+    if not request.user.is_authenticated:
+        return Response(
+            {
+                "error": "Autenticación requerida",
+                "message": "Inicia sesión para consultar tus estadísticas.",
+            },
+            status=401,
+        )
+
     service = get_playlist_generation_service()
     return service.get_user_stats(request.user)
 
@@ -116,16 +155,31 @@ def get_user_stats(request):
 def get_session_stats(request, session_id: str):
     """
     Obtiene estadísticas de una sesión específica.
-    
+
     **Parámetros:**
     - session_id: ID de la sesión
-    
+
     **Retorna:** SessionStatsSchema
     """
+    if not request.user.is_authenticated:
+        return Response(
+            {
+                "error": "Autenticación requerida",
+                "message": "Inicia sesión para consultar sesiones guardadas.",
+            },
+            status=401,
+        )
+
     try:
         session = InteractionSession.objects.get(session_id=session_id)
     except InteractionSession.DoesNotExist:
-        return {"error": "Sesión no encontrada"}, 404
+        return Response(
+            {
+                "error": "Sesión no encontrada",
+                "message": "No existe ninguna sesión con el identificador indicado.",
+            },
+            status=404,
+        )
 
     # Calcular métricas
     session.calculate_metrics()
@@ -163,7 +217,7 @@ def get_session_stats(request, session_id: str):
 def get_dashboard_metrics(request):
     """
     Obtiene métricas del dashboard para administradores.
-    
+
     **Retorna:** DashboardMetricsSchema con:
     - total_users
     - total_interactions
@@ -171,9 +225,23 @@ def get_dashboard_metrics(request):
     - average_completion_rate
     - top_tracks
     """
-    # Solo permitir a administradores
+    if not request.user.is_authenticated:
+        return Response(
+            {
+                "error": "Autenticación requerida",
+                "message": "Inicia sesión como administrador para ver este panel.",
+            },
+            status=401,
+        )
+
     if not request.user.is_staff:
-        return {"error": "Permiso denegado"}, 403
+        return Response(
+            {
+                "error": "Permiso denegado",
+                "message": "Este endpoint solo está disponible para personal del proyecto.",
+            },
+            status=403,
+        )
 
     # Agregaciones
     total_interactions = Interaction.objects.count()

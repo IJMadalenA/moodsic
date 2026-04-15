@@ -25,6 +25,7 @@ from apps.users.views.spotify_oauth import (
 )
 
 urlpatterns = [
+    path("", include("apps.dashboard.urls", namespace="dashboard")),
     path("admin/", admin.site.urls),
     path("accounts/spotify/login/", spotify_oauth_login, name="spotify_login"),
     path(

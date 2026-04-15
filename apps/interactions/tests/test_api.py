@@ -209,6 +209,46 @@ class TestPlaylistAPI:
 
         assert response.status_code == 422
 
+    def test_generate_playlist_caps_requested_count_with_warning(self, client, user, track):
+        """Si se piden demasiadas canciones, la API debe caparlo y avisarlo."""
+        client.force_login(user)
+        response = client.post(
+            "/api/interactions/playlists/generate/",
+            data=json.dumps({"name": "Big Playlist", "count": 150, "use_context": False}),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert "warnings" in payload
+        assert any("100" in warning for warning in payload["warnings"])
+
+    def test_create_interaction_rejects_invalid_feedback_value(self, client, user, track):
+        """feedback inválido debe ser rechazado por el schema."""
+        client.force_login(user)
+        response = client.post(
+            "/api/interactions/interactions/",
+            data=json.dumps(
+                {
+                    "track_id": track.id,
+                    "feedback": "invalid_feedback",
+                    "play_duration": 20,
+                    "track_duration": 180,
+                }
+            ),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 422
+
+    def test_demo_home_page_is_available(self, client):
+        """La raíz del proyecto debe mostrar una página de demo útil para la entrega."""
+        response = client.get("/")
+
+        assert response.status_code == 200
+        assert "MoodSic" in response.content.decode()
+        assert "Demo" in response.content.decode() or "dashboard" in response.content.decode().lower()
+
 
 @pytest.mark.django_db
 class TestDashboardAPI:
@@ -219,6 +259,14 @@ class TestDashboardAPI:
         response = client.options("/api/interactions/dashboard/metrics/")
         # OPTIONS debería estar permitido o retornar 404 si no existe
         assert response.status_code in [200, 404, 405]
+
+    def test_dashboard_metrics_forbid_non_staff_users(self, client, user):
+        """El dashboard agregado debe limitarse a usuarios staff."""
+        client.force_login(user)
+        response = client.get("/api/interactions/dashboard/metrics/")
+
+        assert response.status_code == 403
+
     def test_dashboard_metrics_returns_user_growth(self, client, admin_user, user, track):
         """El dashboard debe retornar métricas y crecimiento de usuarios."""
         from django.utils import timezone

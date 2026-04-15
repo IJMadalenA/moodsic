@@ -178,3 +178,18 @@ Las siguientes líneas razonables de evolución son:
 - mejorar aún más la señal que devuelve la API sobre si una playlist se generó con fallback u online real;
 - seguir refinando el recomendador con datos más representativos;
 - endurecer el paso a integración con servicios reales.
+
+## 12. Flujo de demo recomendado para la entrega
+
+Si alguien del equipo o el profesorado quiere revisar el proyecto en pocos minutos, el orden más claro es este:
+
+1. abrir la ruta principal `/` o `/dashboard/` para ver el resumen del sistema;
+2. entrar en Swagger en `/api/interactions/docs/`;
+3. lanzar una generación de playlist y revisar los campos `mode`, `message` y `warnings`;
+4. validar en el admin que las playlists e interacciones se han persistido correctamente.
+
+## 13. Qué conviene explicar de forma honesta en la defensa
+
+- el flujo offline está completo y permite entrenar, evaluar y hacer benchmark sin APIs reales;
+- el backend distingue entre generación `online`, `fallback` e `hybrid`;
+- Spotify real está preparado a nivel de integración, pero su validación final depende de credenciales/permisos externos.

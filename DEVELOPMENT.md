@@ -232,7 +232,8 @@ moodsic/
 - [x] Training script working
 - [x] Root Dockerfile added
 - [x] GitHub Actions CI pipeline added
-- [ ] Spotify API integration verified with live user OAuth
+- [x] Offline benchmarking and fallback flow validated
+- [ ] Spotify API integration verified with live user OAuth premium
 - [ ] Load testing and performance validation
 - [ ] Security audit and secret management hardening
 
@@ -260,9 +261,9 @@ moodsic/
 ## Known Issues & TODOs
 
 ### Current Limitations
-- No real data yet (system is new)
-- Using synthetic training data for now
-- Spotify integration está en desarrollo, con creación de playlists y sincronización de tracks disponibles en pruebas.
+- El modo offline está cubierto y es el flujo principal para desarrollo y demo.
+- Los datos sintéticos siguen siendo la base de entrenamiento reproducible.
+- La validación real de Spotify depende de una cuenta premium y permisos externos de la app.
 
 ### Next Priority Features
 1. Implement Spotify collection creation
@@ -283,12 +284,12 @@ moodsic/
 ---
 
 ## Version Info
-- Django: 4.2.29
+- Django: 4.2.30
 - Python: 3.13
 - TensorFlow/Keras: Latest
-- Database: PostgreSQL
-- Last Updated: 2026-03-25
+- Database: SQLite en local por defecto
+- Last Updated: 2026-04-15
 
 ---
 
-**Status**: ✅ Development phase complete, ready for integration testing and deployment
+**Status**: ✅ Entrega muy avanzada y operativa en modo offline; pendiente solo la validación final con Spotify real

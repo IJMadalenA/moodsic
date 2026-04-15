@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}MoodSic Demo{% endblock %}
+
+{% block content %}
+<section class="card" style="margin-bottom: 18px;">
+    <span class="badge">Demo lista para entrega</span>
+    <h1 style="margin-top: 12px;">Panel rápido de MoodSic</h1>
+    <p class="muted">
+        Esta vista resume el estado funcional del proyecto para una demo académica,
+        una revisión de equipo o una validación rápida del backend.
+    </p>
+    <div class="navlinks" style="margin-top: 14px;">
+        <a href="/api/interactions/docs/">Abrir Swagger</a>
+        <a href="/admin/">Entrar al admin</a>
+        <a href="/api/interactions/dashboard/metrics/">Métricas JSON</a>
+    </div>
+</section>
+
+<section class="grid" style="margin-bottom: 18px;">
+    <article class="card">
+        <div class="muted">Playlists registradas</div>
+        <h2>{{ stats.playlists }}</h2>
+    </article>
+    <article class="card">
+        <div class="muted">Tracks en catálogo</div>
+        <h2>{{ stats.tracks }}</h2>
+    </article>
+    <article class="card">
+        <div class="muted">Interacciones</div>
+        <h2>{{ stats.interactions }}</h2>
+    </article>
+    <article class="card">
+        <div class="muted">Sesiones activas</div>
+        <h2>{{ stats.active_sessions }}</h2>
+    </article>
+</section>
+
+<section class="grid" style="margin-bottom: 18px;">
+    <article class="card">
+        <h3>Estado de la demo</h3>
+        <p class="muted">Skip rate agregado: <strong style="color: white;">{{ stats.skip_rate }}%</strong></p>
+        <p class="muted">Registros de clima: <strong style="color: white;">{{ stats.weather_records }}</strong></p>
+        <p class="muted">Noticias disponibles: <strong style="color: white;">{{ stats.news_records }}</strong></p>
+    </article>
+    <article class="card">
+        <h3>Flujo recomendado para profesor o equipo</h3>
+        <ol class="muted" style="padding-left: 18px; line-height: 1.6;">
+            <li>Entrar en Swagger y lanzar una generación de playlist.</li>
+            <li>Ver el modo devuelto: online, fallback o hybrid.</li>
+            <li>Comprobar el admin para revisar playlists e interacciones.</li>
+            <li>Usar el modo offline si Spotify real no está disponible.</li>
+        </ol>
+    </article>
+</section>
+
+<section class="card" style="margin-bottom: 18px;">
+    <h3>Estado de integraciones</h3>
+    <div class="grid">
+        {% for item in integration_status %}
+        <article class="card" style="background: rgba(31, 41, 55, 0.7);">
+            <div>
+                <span class="badge {% if item.status != 'listo' and item.status != 'configurado' %}warning{% endif %}">{{ item.status }}</span>
+            </div>
+            <h4 style="margin: 10px 0 6px 0;">{{ item.name }}</h4>
+            <div class="muted">{{ item.detail }}</div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="card">
+    <h3>Últimas playlists locales</h3>
+    {% if recent_playlists %}
+    <ul class="muted" style="line-height: 1.8; padding-left: 18px;">
+        {% for playlist in recent_playlists %}
+        <li><strong style="color: white;">{{ playlist.name }}</strong> · {{ playlist.user }} · {{ playlist.created_at|date:"d/m/Y H:i" }}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">Todavía no hay playlists guardadas en la base local. Puedes generarlas desde Swagger o desde el flujo de demo offline.</p>
+    {% endif %}
+</section>
+{% endblock %}

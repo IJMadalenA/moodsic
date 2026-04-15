@@ -73,6 +73,8 @@ python manage.py runserver
 
 ### 4. Puntos de entrada útiles
 
+- Demo web y resumen del proyecto: /
+- Dashboard de demo: /dashboard/
 - Admin: /admin/
 - API base: /api/interactions/
 - Swagger/OpenAPI: /api/interactions/docs/
@@ -109,5 +111,7 @@ Actualmente MoodSic dispone de:
 
 - índice general: docs/README.md
 - guía de onboarding: docs/ONBOARDING.md
+- nota de cambios finales: docs/FINAL_CHANGES_2026-04-15.md
+- checklist de entrega y defensa: docs/DELIVERY_CHECKLIST.md
 - comandos operativos: MANAGEMENT_COMMANDS.md
 - plan técnico de integración: docs/INTEGRATION_PLAN_DEV.md

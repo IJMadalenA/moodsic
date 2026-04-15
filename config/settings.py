@@ -249,9 +249,9 @@ INTERNAL_IPS = [
 
 # DJANGO UNFOLD. https://unfold.readthedocs.io/en/latest/installation.html
 UNFOLD = {
-    "SITE_TITLE": "Moodsic Admin",
-    "SITE_HEADER": "Moodsic Administration",
-    "INDEX_TITLE": "Welcome to Moodsic Admin Panel",
+    "SITE_TITLE": "MoodSic · Admin",
+    "SITE_HEADER": "Panel de administración de MoodSic",
+    "INDEX_TITLE": "Resumen operativo del proyecto",
     # "SITE_DROPDOWN": [
     #     },
     #     # ...
