@@ -175,6 +175,11 @@ NEWSAPI_BASE_URL = env.str(
     "NEWSAPI_BASE_URL", default="https://newsapi.org/v2/everything"
 )
 
+# RECOMMENDER CONFIGURATION
+# Offline benchmark winner by default: 60% context fit, 40% history affinity.
+RECOMMENDER_CONTEXT_WEIGHT = env.float("RECOMMENDER_CONTEXT_WEIGHT", default=0.6)
+RECOMMENDER_HISTORY_WEIGHT = env.float("RECOMMENDER_HISTORY_WEIGHT", default=0.4)
+
 # CITIES-LIGHT CONFIGURATION
 # https://django-cities-light.readthedocs.io/en/stable/
 CITIES_LIGHT_TRANSLATION_LANGUAGES = ["es", "en"]

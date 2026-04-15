@@ -8,6 +8,7 @@ from collections import Counter
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import Avg, Sum
 from django.utils import timezone
@@ -57,6 +58,7 @@ class PlaylistGenerationService:
         self.agent = get_agent()
         self.reward_service = get_reward_service()
         self.state_builder = get_state_builder()
+        self.context_weight, self.history_weight = self._get_scoring_weights()
 
     def generate_playlist(
         self,
@@ -532,6 +534,23 @@ class PlaylistGenerationService:
             "genres": [name for name, _ in genre_counter.most_common(5)],
         }
 
+    @staticmethod
+    def _get_scoring_weights() -> Tuple[float, float]:
+        """Return normalized recommender weights.
+
+        The benchmark winner is used as the default balance: 0.6 for current
+        context fit and 0.4 for user history/personalization.
+        """
+        context_weight = float(getattr(settings, "RECOMMENDER_CONTEXT_WEIGHT", 0.6))
+        history_weight = float(getattr(settings, "RECOMMENDER_HISTORY_WEIGHT", 0.4))
+
+        context_weight = max(0.0, context_weight)
+        history_weight = max(0.0, history_weight)
+        total = context_weight + history_weight
+        if total <= 0:
+            return 0.6, 0.4
+        return context_weight / total, history_weight / total
+
     def _score_tracks(
         self,
         tracks: List[Track],
@@ -580,21 +599,25 @@ class PlaylistGenerationService:
     ) -> float:
         """
         Genera una puntuación heurística para un track.
+
+        Usa una combinación ponderada de:
+        - ajuste al contexto actual (default 0.6)
+        - afinidad con el historial/preferencias del usuario (default 0.4)
         """
         user_history = user_history or {}
         audio_features = self._get_track_audio_features(track)
-        score = 0.0
 
-        energy = audio_features.get("energy", 0.5)
-        danceability = audio_features.get("danceability", 0.5)
-        valence = audio_features.get("valence", 0.5)
-        acousticness = audio_features.get("acousticness", 0.3)
-        popularity = (track.popularity or 50) / 100.0
+        energy = float(audio_features.get("energy", 0.5))
+        danceability = float(audio_features.get("danceability", 0.5))
+        valence = float(audio_features.get("valence", 0.5))
+        acousticness = float(audio_features.get("acousticness", 0.3))
+        popularity = float((track.popularity or 50) / 100.0)
 
-        score += valence * 0.3
-        score += energy * 0.2
-        score += danceability * 0.2
-        score += popularity * 0.1
+        context_score = 0.0
+        context_score += valence * 0.35
+        context_score += energy * 0.25
+        context_score += danceability * 0.25
+        context_score += popularity * 0.15
 
         if weather_context:
             main = weather_context.get("main_status", "").lower()
@@ -602,26 +625,37 @@ class PlaylistGenerationService:
             temperature = weather_context.get("temperature", 20)
 
             if any(x in main for x in ["rain", "drizzle", "thunderstorm", "snow", "cloud"]):
-                score += (1.0 - ((energy + danceability) / 2.0)) * 0.4
-                score += acousticness * 0.2
+                context_score += (1.0 - ((energy + danceability) / 2.0)) * 0.4
+                context_score += acousticness * 0.2
             if any(x in main for x in ["clear", "sunny"]) or "sun" in description:
-                score += (energy + valence) * 0.25
+                context_score += (energy + valence) * 0.25
             if temperature <= 5:
-                score += acousticness * 0.15
+                context_score += acousticness * 0.15
             elif temperature >= 25:
-                score += danceability * 0.15
+                context_score += danceability * 0.15
+
+        history_score = 0.0
+        avg_energy = float(user_history.get("avg_energy", 0.5))
+        avg_danceability = float(user_history.get("avg_danceability", 0.5))
+        avg_valence = float(user_history.get("avg_valence", 0.5))
+
+        history_score += max(0.0, 1.0 - abs(energy - avg_energy)) * 0.25
+        history_score += max(0.0, 1.0 - abs(danceability - avg_danceability)) * 0.25
+        history_score += max(0.0, 1.0 - abs(valence - avg_valence)) * 0.25
 
         favorite_artists = set(user_history.get("favorite_artists", []))
         favorite_genres = set(user_history.get("favorite_genres", []))
 
         for artist in track.artists.all():
             if artist.name in favorite_artists:
-                score += 1.0
+                history_score += 0.35
             for genre in getattr(artist, "genres", []) or []:
                 if genre.strip() in favorite_genres:
-                    score += 0.5
+                    history_score += 0.15
 
-        return score
+        return (context_score * self.context_weight) + (
+            history_score * self.history_weight
+        )
 
     def get_user_favorite_artists(self, user: User) -> List[str]:
         """Retorna los artistas favoritos del usuario."""
