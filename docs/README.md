@@ -1,21 +1,31 @@
-# Documentación del Proyecto Moodsic
+# Índice de documentación de MoodSic
 
-Bienvenido a la documentación técnica de **Moodsic**, un asistente musical inteligente basado en contexto y aprendizaje por refuerzo.
+Esta carpeta agrupa la documentación útil para entender el proyecto sin tener que recorrer todo el código desde cero.
 
-Para evitar documentos extensos y poco manejables, la documentación se divide en secciones específicas según la funcionalidad o instancia de la aplicación.
+## Documentos principales
 
-## Secciones Disponibles
+| Documento | Para qué sirve |
+| :--- | :--- |
+| [ONBOARDING.md](ONBOARDING.md) | Guía de entrada rápida para una persona nueva en el proyecto. |
+| [INTEGRATION_PLAN_DEV.md](INTEGRATION_PLAN_DEV.md) | Orden y criterios técnicos para integrar ramas y revisar cambios. |
+| [../README.md](../README.md) | Visión general del producto, stack, arranque y mapa del repositorio. |
+| [../DEVELOPMENT.md](../DEVELOPMENT.md) | Estado funcional y guía rápida de desarrollo. |
+| [../MANAGEMENT_COMMANDS.md](../MANAGEMENT_COMMANDS.md) | Referencia de comandos operativos, entrenamiento y benchmarking. |
 
-| Sección | Descripción | Archivo |
-| :--- | :--- | :--- |
-| **Infraestructura y Autenticación** | Configuración base, modelo de usuario, integración con Spotify y gestión de tokens. | [`infrastructure_auth.md`](infrastructure_auth.md) |
-| **Contexto (Weather & Geo)** | Ingesta de datos climáticos y geográficos. | [`context_data.md`](context_data.md) |
-| **Música e Integración API** | Servicios de búsqueda y creación de playlists en Spotify. | Documentación disponible en `/api/interactions/docs/` |
-| **IA y Modelos RL** | Arquitectura del Agente de Aprendizaje por Refuerzo. | *(Próximamente)* |
+## Si acabas de incorporarte al proyecto
 
-## Guías de Desarrollo
+Se recomienda leer en este orden:
 
-Para guías rápidas de desarrollo y estándares del proyecto, consulta los archivos en el directorio `.junie/`:
-- [`guidelines.md`](../.junie/guidelines.md): Estándares de código y arquitectura.
-- [`project_profile.md`](../.junie/project_profile.md): Visión del producto y objetivos de negocio.
-- [`roadmap.md`](../.junie/roadmap.md): Registro de progreso y tareas pendientes.
+1. [../README.md](../README.md)
+2. [ONBOARDING.md](ONBOARDING.md)
+3. [../MANAGEMENT_COMMANDS.md](../MANAGEMENT_COMMANDS.md)
+4. Swagger de la API en /api/interactions/docs/
+
+## Qué encontrarás en el código
+
+- apps/users: autenticación e integración con Spotify.
+- apps/music: catálogo musical y servicios Spotify.
+- apps/context: clima, noticias y contexto externo.
+- apps/interactions: lógica principal de recomendación y feedback.
+- ml: agente RL, reward, entrenamiento y evaluación.
+- pipelines: ETL y preparación de contexto.
