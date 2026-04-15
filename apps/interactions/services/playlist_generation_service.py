@@ -15,7 +15,7 @@ from django.utils import timezone
 
 from apps.context.models import NewsContext, WeatherContext
 from apps.context.services.news_service import NewsService
-from apps.music.models import Track, Playlist, PlaylistTrack
+from apps.music.models import Album, Artist, Track, Playlist, PlaylistTrack
 from apps.music.services.spotify_music_service import SpotifyMusicService
 from apps.interactions.services.reward_service import get_reward_service
 from ml.agent import get_agent
@@ -387,16 +387,99 @@ class PlaylistGenerationService:
     ) -> List[Track]:
         """
         Obtiene tracks disponibles para seleccionar.
-        
-        Actualmente retorna todos los tracks. Puede filtrarse por:
-        - Géneros preferidos del usuario
-        - Popularidad
-        - Recencia
+
+        Prioridad:
+        1. catálogo local ya sincronizado
+        2. hidratación desde Spotify si el usuario está conectado
         """
         max_tracks = min(limit, self.agent.action_dim)
-        return list(
+        local_tracks = list(
             Track.objects.prefetch_related("artists").all()[:max_tracks]
         )
+        if local_tracks:
+            return local_tracks
+
+        hydrated_tracks = self._hydrate_tracks_from_spotify(user, limit=max_tracks)
+        if hydrated_tracks:
+            return hydrated_tracks[:max_tracks]
+
+        return []
+
+    def _hydrate_tracks_from_spotify(self, user: User, limit: int = 100) -> List[Track]:
+        """Populate the local catalog from Spotify as an online fallback."""
+        if not getattr(user, "is_spotify_connected", False):
+            return []
+
+        try:
+            spotify_service = SpotifyMusicService(user)
+            if not spotify_service.client:
+                return []
+
+            tracks_data = spotify_service.get_user_liked_tracks(limit=limit) or []
+            if not tracks_data:
+                tracks_data = spotify_service.get_top_tracks(limit=limit) or []
+
+            imported_tracks = self._upsert_spotify_tracks(tracks_data)
+            if imported_tracks:
+                logger.info(
+                    f"Se importaron {len(imported_tracks)} tracks desde Spotify para fallback"
+                )
+            return imported_tracks
+        except Exception as exc:
+            logger.warning(f"No se pudieron hidratar tracks desde Spotify: {exc}")
+            return []
+
+    @staticmethod
+    def _upsert_spotify_tracks(tracks_data: List[Dict]) -> List[Track]:
+        imported_tracks: List[Track] = []
+
+        for index, item in enumerate(tracks_data):
+            spotify_id = (item.get("id") or "").strip()
+            name = (item.get("name") or f"Remote Track {index + 1}").strip()
+            if not spotify_id:
+                continue
+
+            album_name = (item.get("album") or "Unknown Album").strip() or "Unknown Album"
+            album_spotify_id = (item.get("album_id") or f"album_{spotify_id}").strip()
+            album, _ = Album.objects.get_or_create(
+                spotify_id=album_spotify_id,
+                defaults={"name": album_name},
+            )
+
+            track, _ = Track.objects.update_or_create(
+                spotify_id=spotify_id,
+                defaults={
+                    "name": name,
+                    "album": album,
+                    "duration_ms": int(item.get("duration_ms") or 180000),
+                    "explicit": bool(item.get("explicit", False)),
+                    "track_number": int(item.get("track_number") or 1),
+                    "popularity": int(item.get("popularity") or 50),
+                    "uri": item.get("uri") or f"spotify:track:{spotify_id}",
+                    "preview_url": item.get("preview_url") or "",
+                },
+            )
+
+            track.artists.clear()
+            for artist_idx, artist_data in enumerate(item.get("artists", [])):
+                if isinstance(artist_data, dict):
+                    artist_name = (artist_data.get("name") or f"Artist {artist_idx + 1}").strip()
+                    artist_spotify_id = (
+                        artist_data.get("id") or f"artist_{spotify_id}_{artist_idx}"
+                    )
+                else:
+                    artist_name = str(artist_data).strip() or f"Artist {artist_idx + 1}"
+                    artist_spotify_id = f"artist_{spotify_id}_{artist_idx}"
+
+                artist, _ = Artist.objects.get_or_create(
+                    spotify_id=artist_spotify_id,
+                    defaults={"name": artist_name},
+                )
+                track.artists.add(artist)
+
+            imported_tracks.append(track)
+
+        return imported_tracks
 
     def _get_time_of_day(self) -> str:
         """Obtiene la hora del día actual."""

@@ -57,8 +57,10 @@ class NewsService:
         )
 
         if not api_key:
-            logger.warning("NEWSAPI_KEY is not configured; returning empty news list")
-            return []
+            logger.warning(
+                "NEWSAPI_KEY is not configured; using cached local news when available"
+            )
+            return cls._get_cached_news(category=category, limit=page_size)
 
         params = {
             "q": query,
@@ -68,9 +70,13 @@ class NewsService:
         }
         headers = {"X-Api-Key": api_key}
 
-        response = requests.get(base_url, params=params, headers=headers, timeout=12)
-        response.raise_for_status()
-        payload = response.json()
+        try:
+            response = requests.get(base_url, params=params, headers=headers, timeout=12)
+            response.raise_for_status()
+            payload = response.json()
+        except requests.RequestException as exc:
+            logger.warning(f"News provider unavailable, using cached news fallback: {exc}")
+            return cls._get_cached_news(category=category, limit=page_size)
 
         articles = payload.get("articles", [])
         normalized: list[dict] = []
@@ -100,7 +106,7 @@ class NewsService:
                 }
             )
 
-        return normalized
+        return normalized or cls._get_cached_news(category=category, limit=page_size)
 
     @classmethod
     def fetch_and_store_news(
@@ -129,6 +135,28 @@ class NewsService:
     @classmethod
     def get_recent_news(cls, limit: int = 20) -> list[NewsContext]:
         return list(NewsContext.objects.all().order_by("-published_at")[:limit])
+
+    @classmethod
+    def _get_cached_news(cls, category: str = "general", limit: int = 20) -> list[dict]:
+        queryset = NewsContext.objects.order_by("-published_at")
+        if category and category != "all":
+            queryset = queryset.filter(category=category)
+
+        return [
+            {
+                "title": item.title,
+                "source": item.source,
+                "url": item.url,
+                "summary": item.summary,
+                "language": item.language,
+                "category": item.category,
+                "sentiment_score": item.sentiment_score,
+                "sentiment_label": item.sentiment_label,
+                "is_breaking": item.is_breaking,
+                "published_at": item.published_at,
+            }
+            for item in queryset[: max(1, min(limit, 100))]
+        ]
 
     @staticmethod
     def _parse_published_at(value: str | None):

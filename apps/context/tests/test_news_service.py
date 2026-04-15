@@ -48,6 +48,28 @@ def test_fetch_news_without_key_returns_empty_list():
     assert items == []
 
 
+@pytest.mark.django_db
+@override_settings(NEWSAPI_KEY="")
+def test_fetch_news_without_key_uses_cached_items_when_available():
+    NewsContext.objects.create(
+        title="Cached music headline",
+        source="Local Cache",
+        url="https://example.com/cached-news",
+        summary="Cached summary",
+        language="en",
+        category="music",
+        sentiment_score=0.2,
+        sentiment_label="positive",
+        is_breaking=False,
+    )
+
+    items = NewsService.fetch_latest_news(query="music", category="music", page_size=5)
+
+    assert len(items) == 1
+    assert items[0]["title"] == "Cached music headline"
+    assert items[0]["source"] == "Local Cache"
+
+
 def test_normalize_category_supported_values():
     assert NewsService._normalize_category("music") == "music"
     assert NewsService._normalize_category("Markets") == "markets"

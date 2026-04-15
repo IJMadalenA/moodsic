@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import override_settings
@@ -125,3 +127,39 @@ class TestPlaylistGenerationServiceScoring:
         context_score = service._score_track(context_track, weather_context, user_history)
 
         assert history_score > context_score
+
+    @patch("apps.interactions.services.playlist_generation_service.SpotifyMusicService")
+    def test_available_tracks_fall_back_to_spotify_when_local_catalog_is_empty(
+        self, mock_spotify_service
+    ):
+        user = User.objects.create_user(
+            "spotify_fallback_user",
+            "spotify-fallback@example.com",
+            "pass12345",
+            is_spotify_connected=True,
+        )
+        service = PlaylistGenerationService()
+
+        mock_instance = mock_spotify_service.return_value
+        mock_instance.client = object()
+        mock_instance.get_user_liked_tracks.return_value = [
+            {
+                "id": "remote_track_1",
+                "name": "Remote Track 1",
+                "artists": ["Remote Artist"],
+                "album": "Remote Album",
+                "album_id": "remote_album_1",
+                "duration_ms": 200000,
+                "explicit": False,
+                "popularity": 77,
+                "uri": "spotify:track:remote_track_1",
+                "preview_url": "",
+            }
+        ]
+        mock_instance.get_top_tracks.return_value = []
+
+        tracks = service._get_available_tracks(user, limit=20)
+
+        assert len(tracks) == 1
+        assert tracks[0].spotify_id == "remote_track_1"
+        assert Track.objects.filter(spotify_id="remote_track_1").exists()
