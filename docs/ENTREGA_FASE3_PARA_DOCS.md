@@ -38,6 +38,18 @@ MoodSic es un sistema de recomendación musical contextual construido sobre Djan
 - completar evidencias visuales finales con capturas;
 - si el equipo lo desea, reforzar la presentación del frontend o añadir una interfaz más avanzada.
 
+### Funcionamiento real del sistema actualmente verificado
+
+A nivel práctico, el sistema ya puede demostrarse en local de forma coherente y estable en modo offline:
+
+- el backend arranca correctamente con Django y expone la API en Swagger;
+- la parte visual disponible para demo responde desde la portada y el dashboard;
+- el flujo de generación de playlists se puede ejecutar, devolver respuesta y persistir datos en la base local;
+- los datos de contexto pueden provenir de servicios externos o de mecanismos de fallback/caché local;
+- el modelo de recomendación y su lógica de entrenamiento/evaluación están integrados en el proyecto.
+
+Esto significa que el producto sí funciona realmente, aunque la validación final con Spotify en modo real siga dependiendo de una cuenta premium y credenciales externas.
+
 ---
 
 ## 3. Guía de ejecución local
@@ -191,6 +203,18 @@ La arquitectura real implementada es la de una aplicación web Django con API co
 
 No existe un frontend desacoplado tipo React o Vue; la parte visual actual se apoya en templates HTML de Django y en el panel de administración.
 
+### Correspondencia entre arquitectura diseñada e implementada
+
+La propuesta original del proyecto buscaba un sistema modular con backend, contexto, recomendación y capa de interacción con servicios musicales. La implementación final mantiene esa idea central:
+
+- backend web y API claramente separados por aplicaciones de Django;
+- módulo de recomendación con componentes específicos de estado, reward y agente RL;
+- integración de datos externos mediante servicios dedicados;
+- almacenamiento local y operativa reproducible para desarrollo y demo;
+- capa visual suficiente para validar el flujo funcional aunque no se haya desarrollado un frontend desacoplado.
+
+En consecuencia, la arquitectura implementada sí corresponde de forma clara con la arquitectura funcional planteada para el proyecto.
+
 ---
 
 ## 6. Índice de código real del proyecto
@@ -274,6 +298,17 @@ En ese anexo se incluyen los archivos de:
 - configuración;
 - scripts principales.
 
+### Trazabilidad y consistencia con el repositorio
+
+El anexo de código se ha generado a partir de la estructura real del repositorio, incluyendo rutas completas de archivo. Esto ayuda a que el documento final mantenga correspondencia directa con el contenido que existe en GitHub.
+
+Para la versión final entregable en Docs o PDF, debe mantenerse este criterio:
+
+- conservar el índice de carpetas antes del bloque de código;
+- incluir el contenido íntegro de cada archivo sin recortes;
+- empezar cada archivo en página nueva al maquetar el PDF final;
+- respetar los nombres y rutas reales del repositorio.
+
 ---
 
 ## 8. Breve explicación por módulo
@@ -321,10 +356,11 @@ En ese anexo se incluyen los archivos de:
 
 Listado honesto del estado actual:
 
-- la validación real con Spotify todavía depende de credenciales/permisos externos;
-- la parte visual existe pero no es un frontend independiente avanzado;
-- el proyecto depende mucho del modo offline para reproducibilidad y demo;
-- las capturas finales deben añadirse manualmente al documento antes de la entrega en PDF.
+- la validación real con Spotify todavía depende de credenciales y permisos externos;
+- la parte visual actual está orientada a demo y validación funcional, no a producto frontend avanzado;
+- el proyecto depende del modo offline para asegurar reproducibilidad durante el desarrollo y las pruebas;
+- las capturas finales todavía deben incorporarse manualmente al documento entregable;
+- el cierre total del flujo online queda condicionado por la disponibilidad de la cuenta premium del equipo.
 
 ---
 
@@ -351,6 +387,10 @@ Se verifica que:
 - la ejecución local está documentada;
 - el estado del proyecto se expone de forma honesta;
 - el anexo de código se ha preparado para que coincida con el contenido real del repositorio.
+
+### Coherencia entre documento y repositorio
+
+La memoria se ha redactado tomando como referencia la rama activa del proyecto y su estado funcional real. La intención es que el contenido del documento, el anexo de código y el repositorio público puedan revisarse de forma trazable y coherente, sin contradicciones entre lo descrito y lo implementado.
 
 ---
 
