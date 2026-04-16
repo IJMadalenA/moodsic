@@ -186,7 +186,14 @@ CITIES_LIGHT_TRANSLATION_LANGUAGES = ["es", "en"]
 CITIES_LIGHT_INCLUDE_COUNTRIES = ["ES", "MX", "AR", "CO", "CL", "PE"]
 CITIES_LIGHT_APP_NAME = "cities_light"
 
-WSGI_APPLICATION = "config.wsgi.application"
+UNFOLD_CONFIG = {
+    "SITE_TITLE": "Moodsic Admin",
+    "SITE_HEADER": "Moodsic Torre de Control",
+    "SITE_SYMBOL": "music_note",  # Heroicon
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": True,
+    "DASHBOARD_CALLBACK": "config.dashboard.dashboard_callback",
+}
 
 
 # Database
