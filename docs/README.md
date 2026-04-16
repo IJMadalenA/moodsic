@@ -7,6 +7,8 @@ Esta carpeta agrupa la documentación útil para entender el proyecto sin tener 
 | Documento | Para qué sirve |
 | :--- | :--- |
 | [ONBOARDING.md](ONBOARDING.md) | Guía de entrada rápida para una persona nueva en el proyecto. |
+| [ENTREGA_FASE3_PARA_DOCS.md](ENTREGA_FASE3_PARA_DOCS.md) | Documento principal resuelto y listo para copiar a Docs. |
+| [CODIGO_COMPLETO_PROYECTO.md](CODIGO_COMPLETO_PROYECTO.md) | Anexo con el código textual completo del proyecto. |
 | [DELIVERY_CHECKLIST.md](DELIVERY_CHECKLIST.md) | Qué se puede defender en la entrega y cómo demostrarlo. |
 | [FINAL_CHANGES_2026-04-15.md](FINAL_CHANGES_2026-04-15.md) | Resumen de la última iteración de pulido funcional, UX y entrega. |
 | [INTEGRATION_PLAN_DEV.md](INTEGRATION_PLAN_DEV.md) | Orden y criterios técnicos para integrar ramas y revisar cambios. |
