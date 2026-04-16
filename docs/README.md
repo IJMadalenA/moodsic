@@ -12,6 +12,7 @@ Para evitar documentos extensos y poco manejables, la documentación se divide e
 | **Contexto (Weather & Geo)** | Ingesta de datos climáticos y geográficos. | [`context_data.md`](context_data.md) |
 | **Música e Integración API** | Servicios de búsqueda y creación de playlists en Spotify. | *(Próximamente)* |
 | **IA y Modelos RL** | Arquitectura del Agente de Aprendizaje por Refuerzo. | *(Próximamente)* |
+| **Admin & Monitoreo** | Especificaciones del sistema de administración y visualización. | [`admin_specification.md`](../.junie/admin_specification.md) |
 
 ## Guías de Desarrollo
 
