@@ -1,10 +1,9 @@
 import logging
-
 import spotipy
 from allauth.socialaccount.models import SocialToken
 from django.conf import settings
 from django.utils import timezone
-from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
+from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
 
 logger = logging.getLogger(__name__)
 
@@ -12,39 +11,44 @@ logger = logging.getLogger(__name__)
 HTTP_401_UNAUTHORIZED = 401
 HTTP_429_TOO_MANY_REQUESTS = 429
 
-
 class SpotifyMusicService:
     """
     Servicio centralizado para interactuar con la API de Spotify.
-    Maneja la autenticación, persistencia de tokens y refresco automático.
+    Maneja la autenticación mediante SocialToken de allauth y creación de playlists.
     """
 
     def __init__(self, user):
         self.user = user
+        self.client = None
+        self.spotify_user_id = None
+        
+        # Llama al método de abajo para buscar en SocialToken
         self.token = self._get_valid_token()
-        self.client = spotipy.Spotify(auth=self.token.token) if self.token else None
+        
+        if self.token:
+            self.client = spotipy.Spotify(auth=self.token.token, requests_timeout=10)
+            try:
+                me = self.client.current_user()
+                self.spotify_user_id = me['id']
+                print(f"✅ Conectado a Spotify: {self.spotify_user_id}")
+            except Exception as e:
+                print(f"⚠️ Error al validar cliente Spotify: {e}")
+                self.client = None
 
     def _get_valid_token(self):
-        """
-        Obtiene el token de Spotify para el usuario y lo refresca si es necesario.
-        """
+        """Busca el token en la tabla SocialToken de allauth."""
         try:
-            token = SocialToken.objects.get(
-                account__user=self.user, account__provider="spotify"
-            )
-        except SocialToken.DoesNotExist:
+            from allauth.socialaccount.models import SocialToken
+            return SocialToken.objects.filter(
+                account__user=self.user, 
+                account__provider="spotify"
+            ).first()
+        except Exception as e:
+            logger.error(f"Error al recuperar token de la DB: {e}")
             return None
 
-        # Verificar si el token ha expirado (o está a punto de expirar)
-        if token.expires_at and token.expires_at <= timezone.now():
-            self._refresh_token(token)
-
-        return token
-
     def _refresh_token(self, token):
-        """
-        Refresca el token utilizando el refresh_token almacenado.
-        """
+        """Refresca el token utilizando el refresh_token almacenado en token_secret."""
         sp_oauth = SpotifyOAuth(
             client_id=settings.SPOTIPY_CLIENT_ID,
             client_secret=settings.SPOTIPY_CLIENT_SECRET,
@@ -53,434 +57,90 @@ class SpotifyMusicService:
 
         refresh_token = token.token_secret
         if not refresh_token:
-            logger.warning(f"No refresh token found for user {self.user.username}")
+            logger.warning(f"No hay refresh token para {self.user.username}")
             return
 
         try:
             new_token_info = sp_oauth.refresh_access_token(refresh_token)
-
             if new_token_info:
                 token.token = new_token_info["access_token"]
                 if "refresh_token" in new_token_info:
                     token.token_secret = new_token_info["refresh_token"]
 
                 expires_in = new_token_info.get("expires_in", 3600)
-                token.expires_at = timezone.now() + timezone.timedelta(
-                    seconds=expires_in
-                )
+                token.expires_at = timezone.now() + timezone.timedelta(seconds=expires_in)
                 token.save()
-                logger.info(
-                    f"Token refreshed successfully for user {self.user.username}"
-                )
+                logger.info(f"Token refrescado exitosamente para {self.user.username}")
         except Exception as e:
-            logger.error(f"Error refreshing token for user {self.user.username}: {e}")
+            logger.error(f"Error al refrescar token: {e}")
 
-    def get_user_info(self):
-        """
-        Obtiene información del perfil de Spotify del usuario actual.
-        """
-        if not self.client:
-            return None
-        return self.client.current_user()
-
-    def search_tracks(self, query: str, limit: int = 20, **_kwargs):
-        """
-        Busca tracks en Spotify.
-        Permite filtrar por parámetros de audio si se proporcionan en kwargs.
-        Debido a que la API de búsqueda de Spotify no soporta parámetros de audio directamente,
-        estos se usarán para filtrar los resultados o como base para recomendaciones si es necesario.
-        En esta implementación inicial, realizamos la búsqueda y luego podríamos filtrar
-        (aunque el filtrado real por audio suele ser más eficiente vía recommendations).
-        """
-        if not self.client:
-            return None
-
-        results = self.client.search(q=query, limit=limit, type="track")
-
-        # Si hay parámetros de audio en kwargs, podríamos filtrar los resultados aquí.
-        # Por ahora, devolvemos los resultados de la búsqueda.
-        return results
-
-    def get_recommendations(
-        self,
-        seed_artists: list | None = None,
-        seed_genres: list | None = None,
-        seed_tracks: list | None = None,
-        limit: int = 20,
-        **kwargs,
-    ):
-        """
-        Obtiene recomendaciones basadas en semillas y parámetros de audio.
-        """
-        if not self.client:
+    def create_playlist(self, name, description="", public=True):
+        """Crea una playlist usando el ID técnico recuperado en el init."""
+        if not self.client or not self.spotify_user_id:
+            logger.error("No hay cliente de Spotify disponible o ID de usuario")
             return None
 
         try:
-            return self.client.recommendations(
-                seed_artists=seed_artists,
-                seed_genres=seed_genres,
-                seed_tracks=seed_tracks,
-                limit=limit,
-                **kwargs,
-            )
-        except spotipy.SpotifyException as e:
-            logger.error(f"Error en recomendaciones de Spotify: {e}")
-            self._handle_spotify_exception(e)
-            return None
-
-    def create_playlist(
-        self,
-        name: str,
-        public: bool = True,
-        collaborative: bool = False,
-        description: str = "",
-    ):
-        """
-        Crea una nueva playlist en la cuenta del usuario.
-        """
-        if not self.client:
-            return None
-
-        try:
-            user_id = self.client.current_user()["id"]
-            return self.client.user_playlist_create(
-                user=user_id,
+            res = self.client.user_playlist_create(
+                user=self.spotify_user_id,
                 name=name,
                 public=public,
-                collaborative=collaborative,
-                description=description,
+                collaborative=False,
+                description=description
             )
-        except spotipy.SpotifyException as e:
-            logger.error(f"Error al crear playlist: {e}")
-            self._handle_spotify_exception(e)
-            return None
-
-    def add_tracks_to_playlist(self, playlist_id: str, track_uris: list[str]):
-        """
-        Añade canciones a una playlist existente.
-        """
-        if not self.client:
-            return None
-
-        try:
-            return self.client.playlist_add_items(playlist_id, track_uris)
-        except spotipy.SpotifyException as e:
-            logger.error(f"Error al añadir tracks a la playlist {playlist_id}: {e}")
-            self._handle_spotify_exception(e)
-            return None
-
-    def replace_playlist_tracks(self, playlist_id: str, track_uris: list[str]):
-        """
-        Reemplaza todas las canciones de una playlist por una nueva lista.
-        Útil para actualizar playlists dinámicas de "Mood".
-        """
-        if not self.client:
-            return None
-
-        try:
-            return self.client.playlist_replace_items(playlist_id, track_uris)
-        except spotipy.SpotifyException as e:
-            logger.error(
-                f"Error al reemplazar tracks en la playlist {playlist_id}: {e}"
-            )
-            self._handle_spotify_exception(e)
-            return None
-
-    def _handle_spotify_exception(self, e: spotipy.SpotifyException):
-        """
-        Manejo centralizado de excepciones de la API de Spotify.
-        """
-        if e.http_status == HTTP_401_UNAUTHORIZED:
-            logger.warning(
-                "Token expirado detectado durante la operación. Intentando refrescar..."
-            )
-            self.token = self._get_valid_token()
-            if self.token:
-                self.client = spotipy.Spotify(auth=self.token.token)
-        elif e.http_status == HTTP_429_TOO_MANY_REQUESTS:
-            retry_after = e.headers.get("Retry-After", "desconocido")
-            logger.error(
-                f"Límite de tasa (Rate Limit) alcanzado. Reintentar después de {retry_after}s."
-            )
-        else:
+            logger.info(f"✅ Playlist creada con éxito: {res['id']}")
+            return res
+        except spotipy.exceptions.SpotifyException as e:
             logger.error(f"Error de Spotify API ({e.http_status}): {e.msg}")
-
-    def get_playlist_tracks(self, playlist_id, limit=50):
-        """
-        Obtiene los tracks de una playlist específica.
-
-        Args:
-            playlist_id: ID de la playlist de Spotify (puede incluir 'spotify:playlist:')
-            limit: Número máximo de tracks a obtener (default: 50, max: 50)
-
-        Returns:
-            Lista de diccionarios con información de tracks
-        """
-        if not self.client:
-            logger.warning(f"No Spotify client available for user {self.user.username}")
-            return []
-
-        # Limpiar playlist_id si tiene el formato spotify:playlist:xxx
-        if playlist_id.startswith("spotify:playlist:"):
-            playlist_id = playlist_id.split(":")[-1]
-
-        try:
-            results = self.client.playlist_tracks(playlist_id, limit=min(limit, 50))
-            tracks = []
-
-            for item in results.get("items", []):
-                track = item.get("track", {})
-                if track:
-                    tracks.append(
-                        {
-                            "id": track.get("id"),
-                            "name": track.get("name"),
-                            "artists": [
-                                artist.get("name")
-                                for artist in track.get("artists", [])
-                            ],
-                            "album": track.get("album", {}).get("name"),
-                            "album_id": track.get("album", {}).get("id"),
-                            "duration_ms": track.get("duration_ms"),
-                            "explicit": track.get("explicit", False),
-                            "popularity": track.get("popularity"),
-                            "uri": track.get("uri"),
-                            "preview_url": track.get("preview_url"),
-                        }
-                    )
-
-            logger.info(f"Retrieved {len(tracks)} tracks from playlist {playlist_id}")
-            return tracks
-        except Exception as e:
-            logger.error(f"Error retrieving playlist tracks: {e}")
-            return []
-
-    def get_user_liked_tracks(self, limit=50):
-        """
-        Obtiene los tracks que le gustan al usuario (Liked Songs).
-
-        Args:
-            limit: Número máximo de tracks a obtener
-
-        Returns:
-            Lista de diccionarios con información de tracks
-        """
-        if not self.client:
-            logger.warning(f"No Spotify client available for user {self.user.username}")
-            return []
-
-        try:
-            results = self.client.current_user_saved_tracks(limit=min(limit, 50))
-            tracks = []
-
-            for item in results.get("items", []):
-                track = item.get("track", {})
-                if track:
-                    tracks.append(
-                        {
-                            "id": track.get("id"),
-                            "name": track.get("name"),
-                            "artists": [
-                                artist.get("name")
-                                for artist in track.get("artists", [])
-                            ],
-                            "album": track.get("album", {}).get("name"),
-                            "album_id": track.get("album", {}).get("id"),
-                            "duration_ms": track.get("duration_ms"),
-                            "explicit": track.get("explicit", False),
-                            "popularity": track.get("popularity"),
-                            "uri": track.get("uri"),
-                            "preview_url": track.get("preview_url"),
-                        }
-                    )
-
-            logger.info(f"Retrieved {len(tracks)} liked tracks for user {self.user.username}")
-            return tracks
-        except Exception as e:
-            logger.error(f"Error retrieving user liked tracks: {e}")
-            return []
-
-    def get_top_tracks(self, time_range="medium_term", limit=50):
-        """
-        Obtiene los top tracks del usuario según Spotify.
-
-        Args:
-            time_range: 'long_term' (años), 'medium_term' (6 meses), 'short_term' (4 semanas)
-            limit: Número máximo de tracks a obtener
-
-        Returns:
-            Lista de diccionarios con información de tracks
-        """
-        if not self.client:
-            logger.warning(f"No Spotify client available for user {self.user.username}")
-            return []
-
-        try:
-            results = self.client.current_user_top_tracks(
-                time_range=time_range,
-                limit=min(limit, 50)
-            )
-            tracks = []
-
-            for track in results.get("items", []):
-                tracks.append(
-                    {
-                        "id": track.get("id"),
-                        "name": track.get("name"),
-                        "artists": [
-                            artist.get("name") for artist in track.get("artists", [])
-                        ],
-                        "album": track.get("album", {}).get("name"),
-                        "album_id": track.get("album", {}).get("id"),
-                        "duration_ms": track.get("duration_ms"),
-                        "explicit": track.get("explicit", False),
-                        "popularity": track.get("popularity"),
-                        "uri": track.get("uri"),
-                        "preview_url": track.get("preview_url"),
-                    }
-                )
-
-            logger.info(f"Retrieved {len(tracks)} top tracks for user {self.user.username}")
-            return tracks
-        except Exception as e:
-            logger.error(f"Error retrieving top tracks: {e}")
-            return []
-
-    def create_playlist(self, name, description="", public=False):
-        """
-        Crea una nueva playlist en la cuenta de Spotify del usuario.
-
-        Args:
-            name: Nombre de la playlist
-            description: Descripción de la playlist
-            public: Si la playlist es pública
-
-        Returns:
-            Diccionario con información de la playlist creada, o None en caso de error
-        """
-        if not self.client:
-            logger.warning(f"No Spotify client available for user {self.user.username}")
-            return None
-
-        try:
-            user_id = self.client.current_user().get("id")
-            if not user_id:
-                logger.error("Could not get Spotify user ID")
-                return None
-
-            playlist = self.client.user_playlist_create(
-                user=user_id,
-                name=name,
-                public=public,
-                description=description,
-            )
-
-            logger.info(f"Created playlist '{name}' for user {self.user.username}")
-            return {
-                "id": playlist.get("id"),
-                "name": playlist.get("name"),
-                "spotify_id": playlist.get("id"),
-                "uri": playlist.get("uri"),
-                "external_urls": playlist.get("external_urls", {}).get("spotify"),
-                "snapshot_id": playlist.get("snapshot_id"),
-                "images": playlist.get("images", []),
-            }
-        except Exception as e:
-            logger.error(f"Error creating playlist: {e}")
             return None
 
     def add_tracks_to_playlist(self, playlist_id, track_uris):
-        """
-        Agrega tracks a una playlist existente.
-
-        Args:
-            playlist_id: ID de la playlist
-            track_uris: Lista de URIs de Spotify (spotify:track:xxx)
-
-        Returns:
-            True si fue exitoso, False en caso de error
-        """
-        if not self.client:
-            logger.warning(f"No Spotify client available for user {self.user.username}")
+        if not self.client or not track_uris:
             return False
-
-        if not track_uris:
-            logger.warning("No tracks provided to add to playlist")
-            return False
-
         try:
-            # Spotify API tiene límite de 100 tracks por request
             for i in range(0, len(track_uris), 100):
                 batch = track_uris[i : i + 100]
                 self.client.playlist_add_items(playlist_id, batch)
-
-            logger.info(f"Added {len(track_uris)} tracks to playlist {playlist_id}")
             return True
         except Exception as e:
-            logger.error(f"Error adding tracks to playlist: {e}")
+            logger.error(f"Error al añadir tracks: {e}")
             return False
 
+    def search_tracks(self, query: str, limit: int = 20, **_kwargs):
+        if not self.client: return None
+        return self.client.search(q=query, limit=limit, type="track")
+
+    def get_recommendations(self, seed_artists=None, seed_genres=None, seed_tracks=None, limit=20, **kwargs):
+        if not self.client: return None
+        try:
+            return self.client.recommendations(seed_artists=seed_artists, seed_genres=seed_genres, seed_tracks=seed_tracks, limit=limit, **kwargs)
+        except Exception as e:
+            logger.error(f"Error en recomendaciones: {e}")
+            return None
+
     def get_audio_features(self, track_ids):
-        """
-        Obtiene características de audio para una lista de tracks.
-
-        Args:
-            track_ids: Lista de IDs de Spotify
-
-        Returns:
-            Diccionario mapping track_id -> audio features
-        """
-        if not self.client:
-            logger.warning(f"No Spotify client available for user {self.user.username}")
-            return {}
-
-        if not track_ids:
-            return {}
-
+        if not self.client or not track_ids: return {}
         try:
             features_dict = {}
-            # Spotify API permite máximo 100 tracks por request
             for i in range(0, len(track_ids), 100):
                 batch = track_ids[i : i + 100]
                 features = self.client.audio_features(batch)
-
-                for feature in features:
-                    if feature:
-                        features_dict[feature["id"]] = {
-                            "danceability": feature.get("danceability", 0),
-                            "energy": feature.get("energy", 0),
-                            "key": feature.get("key", 0),
-                            "loudness": feature.get("loudness", 0),
-                            "mode": feature.get("mode", 0),
-                            "speechiness": feature.get("speechiness", 0),
-                            "acousticness": feature.get("acousticness", 0),
-                            "instrumentalness": feature.get("instrumentalness", 0),
-                            "liveness": feature.get("liveness", 0),
-                            "valence": feature.get("valence", 0),
-                            "tempo": feature.get("tempo", 0),
-                            "time_signature": feature.get("time_signature", 0),
-                        }
-
-            logger.info(f"Retrieved audio features for {len(features_dict)} tracks")
+                for f in features:
+                    if f: features_dict[f["id"]] = f
             return features_dict
         except Exception as e:
-            logger.error(f"Error retrieving audio features: {e}")
+            logger.error(f"Error en audio features: {e}")
             return {}
 
     @staticmethod
     def verify_api_connection():
-        """
-        Verifica que las credenciales de la API de Spotify en settings sean válidas
-        usando Client Credentials Flow (sin usuario específico).
-        """
         try:
             auth_manager = SpotifyClientCredentials(
                 client_id=settings.SPOTIPY_CLIENT_ID,
                 client_secret=settings.SPOTIPY_CLIENT_SECRET,
             )
             sp = spotipy.Spotify(auth_manager=auth_manager)
-            # Intentamos una operación simple
             sp.search(q="test", limit=1)
-            return True, "Conexión exitosa con Spotify API."
+            return True, "Conexión exitosa."
         except Exception as e:
-            return False, f"Error de conexión con Spotify API: {e!s}"
+            return False, str(e)

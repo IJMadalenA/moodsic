@@ -15,7 +15,16 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
         *BaseUserAdmin.fieldsets,
         (
             "Spotify info",
-            {"fields": ("spotify_id", "avatar_url", "is_spotify_connected")},
+            {
+                "fields": (
+                    "spotify_id", 
+                    "avatar_url", 
+                    "is_spotify_connected",
+                    "access_token", 
+                    "refresh_token",
+                    "token_expires_at",
+                )
+            },
         ),
     )
     list_display = (*BaseUserAdmin.list_display, "spotify_id", "is_spotify_connected")

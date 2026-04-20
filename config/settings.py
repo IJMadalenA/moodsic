@@ -40,18 +40,16 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env.str("SECRET_KEY")
+SECRET_KEY = env.str("DJANGO_SECRET_KEY", default="clave-secreta-temporal")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool("DEBUG")  # https://docs.djangoproject.com/es/6/ref/settings/#debug.
+DEBUG = env.bool("DEBUG", default=True)# https://docs.djangoproject.com/es/6/ref/settings/#debug.
 DEVELOPMENT_MODE = env.bool("DEVELOPMENT_MODE")
 IS_PRODUCTION = not DEVELOPMENT_MODE and not DEBUG
 
-SITE_ID = 1  # https://docs.djangoproject.com/es/6/ref/settings/#site-id.
+SITE_ID = 2  # https://docs.djangoproject.com/es/6/ref/settings/#site-id.
 
-ADMINS = (
-    [] if IS_TEST else env("ADMINS")
-)  # https://docs.djangoproject.com/es/6/ref/settings/#admins.
+ADMINS = env.list("ADMINS", default=[])  # https://docs.djangoproject.com/es/6/ref/settings/#admins.
 MANAGERS = ADMINS  # https://docs.djangoproject.com/es/6/ref/settings/#managers.
 
 ALLOWED_HOSTS = env.list(
@@ -143,7 +141,10 @@ SOCIALACCOUNT_PROVIDERS = {
             "user-top-read",
             "playlist-read-private",
             "user-read-recently-played",
+            "playlist-modify-public",
+            "playlist-modify-private",
         ],
+        'AUTH_PARAMS': {'show_dialog': 'true'},
     }
 }
 
