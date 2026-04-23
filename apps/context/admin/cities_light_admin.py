@@ -50,7 +50,7 @@ class CityAdmin(ModelAdmin):
     search_fields = ("name", "display_name", "country__name", "region__name")
     list_filter = ("country",)
 
-    def get_actions_list(self):
+    def get_actions_list(self, request):
         return ["update_geo_data"]
 
     @action(description=_("Actualizar Datos Geográficos"), url_path="update-geo-data")

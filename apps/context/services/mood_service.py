@@ -1,18 +1,22 @@
 from typing import ClassVar, TypedDict
+import logging
 
+logger = logging.getLogger(__name__)
 
 class MusicParameters(TypedDict, total=False):
+    """Estructura de parámetros para la API de recomendaciones de Spotify."""
     target_energy: float
     target_valence: float
     target_danceability: float
     seed_genres: list[str]
 
-
 class MoodService:
     """
-    Servicio para normalizar estados climáticos a Moods y parámetros musicales.
+    Servicio avanzado para normalizar estados climáticos y sentimientos de noticias
+    en parámetros musicales técnicos para Spotify.
     """
 
+    # Diccionario base que mapea el clima a estados de ánimo y parámetros iniciales
     MOOD_MAPPING: ClassVar[dict[str, dict]] = {
         "Clear": {
             "mood": "Happy/Upbeat",
@@ -80,19 +84,52 @@ class MoodService:
     }
 
     @classmethod
-    def get_music_params_for_weather(
-        cls, main_status: str
-    ) -> str | dict[str, float | list[str]]:
+    def get_combined_params(cls, main_status: str, avg_sentiment: float = 0.0) -> MusicParameters:
         """
-        Dada una condición climática principal, devuelve los parámetros musicales sugeridos.
+        Calcula los parámetros finales ajustando la base del clima con el 
+        sentimiento de las noticias (rango de -1.0 a 1.0).
+        """
+        # 1. Obtener la configuración base según el clima
+        mapping = cls.MOOD_MAPPING.get(main_status, cls.MOOD_MAPPING["Clouds"])
+        params: MusicParameters = mapping["params"].copy()
+        
+        # 2. Ajuste de VALENCE (Felicidad musical) según noticias
+        # El sentimiento de las noticias modifica la felicidad de la música
+        valence_adjustment = avg_sentiment * 0.25
+        new_valence = params.get("target_valence", 0.5) + valence_adjustment
+        params["target_valence"] = max(0.0, min(1.0, round(new_valence, 2)))
+        
+        # 3. Ajuste de ENERGY según intensidad de noticias
+        # Si las noticias son muy extremas (muy buenas o muy malas), subimos la energía
+        if abs(avg_sentiment) > 0.6:
+            new_energy = params.get("target_energy", 0.5) + 0.15
+            params["target_energy"] = max(0.0, min(1.0, round(new_energy, 2)))
+
+        logger.info(
+            f"Mood Engine -> Clima: {main_status}, Sentimiento: {avg_sentiment:.2f} | "
+            f"Resultado -> Valence: {params['target_valence']}, Energy: {params['target_energy']}"
+        )
+        
+        return params
+
+    @classmethod
+    def get_mood_label(cls, main_status: str, avg_sentiment: float = 0.0) -> str:
+        """
+        Genera una etiqueta de texto descriptiva del estado de ánimo combinado.
+        """
+        base_mood = cls.MOOD_MAPPING.get(main_status, cls.MOOD_MAPPING["Clouds"])["mood"]
+        
+        if avg_sentiment > 0.4:
+            return f"Very Positive & {base_mood}"
+        elif avg_sentiment < -0.4:
+            return f"Somber & {base_mood}"
+        
+        return base_mood
+
+    @classmethod
+    def get_music_params_for_weather(cls, main_status: str) -> MusicParameters:
+        """
+        Método legado: mantiene compatibilidad devolviendo solo la base del clima.
         """
         mapping = cls.MOOD_MAPPING.get(main_status, cls.MOOD_MAPPING["Clouds"])
         return mapping["params"]
-
-    @classmethod
-    def get_mood_name(cls, main_status: str) -> str:
-        """
-        Devuelve el nombre del mood para una condición climática.
-        """
-        mapping = cls.MOOD_MAPPING.get(main_status, cls.MOOD_MAPPING["Clouds"])
-        return mapping["mood"]

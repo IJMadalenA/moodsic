@@ -132,21 +132,34 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # SOCIAL ACCOUNT SETTINGS
+# settings.py
+
+# settings.py
+
 SOCIALACCOUNT_PROVIDERS = {
-    "spotify": {
-        "SCOPE": [
-            "user-read-email",
-            "user-read-private",
-            "user-library-read",
-            "user-top-read",
-            "playlist-read-private",
-            "user-read-recently-played",
-            "playlist-modify-public",
-            "playlist-modify-private",
+    'spotify': {
+        'SCOPE': [
+            'user-read-email',
+            'user-read-private',
+            'playlist-modify-public',
+            'playlist-modify-private',
+            'user-top-read',
         ],
-        'AUTH_PARAMS': {'show_dialog': 'true'},
+        'AUTH_PARAMS': {
+            'show_dialog': 'true',
+            # ESTA LÍNEA ES EL TRUCO: Forzamos a Spotify a recibir los scopes por URL
+            'scope': 'user-read-email user-read-private playlist-modify-public playlist-modify-private user-top-read',
+        },
     }
 }
+
+SOCIALACCOUNT_STORE_TOKENS = True
+#SOCIALACCOUNT_ADAPTER = 'apps.users.adapters.MoodsicSocialAccountAdapter'
+
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+
+
 
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
@@ -154,13 +167,17 @@ LOGOUT_REDIRECT_URL = "/"
 # ALLAUTH CONFIGURATION
 AUTH_USER_MODEL = "users.User"
 ACCOUNT_LOGIN_METHODS = {"email"}
-ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = "none"
-# Keep session cookie behavior explicit for OAuth roundtrips.
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
+
+# --- FLUJO AUTOMÁTICO DE SPOTIFY ---
+SOCIALACCOUNT_AUTO_SIGNUP = True  # Salta el formulario de registro social
+SOCIALACCOUNT_QUERY_EMAIL = True  # Cruza el email de Spotify con tu usuario
+ACCOUNT_ADAPTER = 'allauth.account.adapter.DefaultAccountAdapter'
+
+# SEGURIDAD DE SESIÓN
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = False
-
-SOCIALACCOUNT_ADAPTER = "apps.users.adapter.MoodsicSocialAccountAdapter"
 
 # SPOTIPY CONFIGURATION
 SPOTIPY_CLIENT_ID = env.str("SPOTIPY_CLIENT_ID", default="")

@@ -1,53 +1,60 @@
 import logging
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.utils import timezone
-from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
 class MoodsicSocialAccountAdapter(DefaultSocialAccountAdapter):
-    def on_authentication_error(self, request, provider, error=None, exception=None, extra_context=None):
-        logger.error(
-            "OAuth authentication error provider=%s error=%s exception=%r extra_context=%r",
-            getattr(provider, "id", provider), error, exception, extra_context, exc_info=True,
-        )
-
     def save_user(self, request, sociallogin, form=None):
-        """
-        Guarda el usuario y mapea los tokens de Spotify a nuestro modelo custom.
-        """
         try:
-            # 1. Llamamos al guardado base de allauth
+            print("--- DEBUG ADAPTER: Inicio del proceso de guardado ---")
+            
+            # 1. Ejecutamos el guardado estándar
             user = super().save_user(request, sociallogin, form)
-            logger.info(f"✓ User created/updated: {user.email}")
+            
+            # SEGURIDAD: Si por alguna razón el user no tiene ID (no se guardó), lo forzamos
+            if not user.pk:
+                user.save()
+                print("--- DEBUG ADAPTER: Usuario forzado a base de datos para obtener ID ---")
 
-            # 2. Extraemos los datos de la cuenta social
             social_account = sociallogin.account
-            token_data = sociallogin.token # Aquí están las llaves para la API
-            
-            # 3. Poblamos los campos de perfil
-            user.avatar_url = social_account.get_avatar_url() or ""
-            user.spotify_id = social_account.uid
-            user.is_spotify_connected = True
+            token_data = sociallogin.token 
 
-            # 4. GUARDADO DE TOKENS (Crucial para el modelo de ML)
-            # El access_token es lo que usamos para las llamadas inmediatas
-            user.access_token = token_data.token
+            # --- LOGS DE TOKENS (Lo que pediste ver) ---
+            if token_data:
+                # Mostramos los primeros 40 caracteres para confirmar que es un token real
+                print(f"--- [TOKEN ACCESS]: {token_data.token[:40]}... ---")
+                print(f"--- [TOKEN REFRESH]: {token_data.token_secret[:20]}... ---")
+                print(f"--- [TOKEN EXPIRES]: {token_data.expires_at} ---")
+            else:
+                print("--- ⚠️ WARNING: Spotify NO envió token_data ---")
+
+            # 2. Guardamos en tu modelo User personalizado
+            user.is_spotify_connected = True
+            user.access_token = token_data.token if token_data else ""
+            user.refresh_token = token_data.token_secret if token_data else ""
             
-            # El refresh_token es lo que usará nuestro ml/agent.py para no pedir login de nuevo
-            user.refresh_token = token_data.token_secret
-            
-            # Guardamos cuándo expira (Spotify suele dar 3600 segundos)
-            if token_data.expires_at:
+            if token_data and token_data.expires_at:
                 user.token_expires_at = token_data.expires_at
             
-            logger.info(f"Setting spotify_id={user.spotify_id}, access_token saved (len: {len(user.access_token)})")
-            
             user.save()
-            logger.info(f"✓ Spotify tokens and profile saved successfully")
+            print(f"--- DEBUG: Modelo User actualizado para {user.username} ---")
 
+            # 3. VINCULACIÓN CON TABLAS SOCIALES (ADMIN)
+            # Esto es lo que rellena "Social Accounts"
+            social_account.user = user
+            social_account.save() 
+            print(f"--- DEBUG: SocialAccount vinculada con éxito (ID: {social_account.id}) ---")
+            
+            # Esto es lo que rellena "Social Application Tokens"
+            if token_data:
+                token_data.account = social_account
+                token_data.save()
+                print(f"--- DEBUG: SocialToken vinculado con éxito (ID: {token_data.id}) ---")
+            
             return user
             
         except Exception as e:
-            logger.error(f"✗ ERROR in save_user: {type(e).__name__}: {str(e)}", exc_info=True)
+            print(f"--- ❌ ERROR CRÍTICO EN ADAPTER: {str(e)} ---")
+            logger.error(f"Fallo en save_user: {e}", exc_info=True)
             raise
