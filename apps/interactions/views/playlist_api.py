@@ -279,15 +279,15 @@ def sync_playlist_to_spotify(request, playlist_id: str):
         target_user = request.user
 
         # --- PRINT DE DEPURACIÓN ---
-        print(f"\n--- DEBUG SYNC ---")
+        print("\n--- DEBUG SYNC ---")
         print(f"Usuario detectado: {target_user}")
         print(f"ID del usuario: {target_user.id}")
         print(f"¿Está autenticado?: {target_user.is_authenticated}")
-        print(f"------------------\n")
+        print("------------------\n")
 
         # 2. Verificación de seguridad: Comprobamos si el usuario tiene tokens
         # Se verifica tanto el campo is_spotify_connected como la existencia del token
-        if not hasattr(target_user, 'access_token') or not target_user.access_token:
+        if not hasattr(target_user, "access_token") or not target_user.access_token:
             return Response(
                 {
                     "success": False,
@@ -314,7 +314,7 @@ def sync_playlist_to_spotify(request, playlist_id: str):
 
         # 4. Inicializar el servicio de Spotify con los tokens del usuario actual
         spotify_service = SpotifyMusicService(target_user)
-        
+
         # 5. Crear la playlist física en la cuenta de Spotify
         spotify_playlist = spotify_service.create_playlist(
             name=playlist.name,
@@ -324,7 +324,7 @@ def sync_playlist_to_spotify(request, playlist_id: str):
 
         if not spotify_playlist:
             return Response(
-                {"success": False, "error": "Error al crear la playlist en los servidores de Spotify"}, 
+                {"success": False, "error": "Error al crear la playlist en los servidores de Spotify"},
                 status=500
             )
 
@@ -350,11 +350,11 @@ def sync_playlist_to_spotify(request, playlist_id: str):
             {
                 "error": "Playlist local no encontrada",
                 "message": f"No se encontró la playlist con ID {playlist_id} para este usuario."
-            }, 
+            },
             status=404
         )
     except Exception as e:
-        logger.error(f"Error en sync_playlist_to_spotify: {str(e)}", exc_info=True)
+        logger.error(f"Error en sync_playlist_to_spotify: {e!s}", exc_info=True)
         return Response({"error": "Error interno del servidor", "detail": str(e)}, status=500)
 
 
@@ -386,18 +386,18 @@ def sync_tracks_from_spotify(  # noqa: C901, PLR0912
     try:
         # Verificar que el usuario está conectado a Spotify
         if not request.user.is_spotify_connected:
-            return {
-                "success": False,
-                "error": "Usuario no está conectado a Spotify"
-            }, 403
+            return Response(
+                {"success": False, "error": "Usuario no está conectado a Spotify"},
+                status=403,
+            )
 
         # Inicializar servicio
         spotify_service = SpotifyMusicService(request.user)
         if not spotify_service.client:
-            return {
-                "success": False,
-                "error": "No se pudo autenticar con Spotify"
-            }, 500
+            return Response(
+                {"success": False, "error": "No se pudo autenticar con Spotify"},
+                status=500,
+            )
 
         # Obtener tracks según la fuente
         if source == "liked":
@@ -405,10 +405,10 @@ def sync_tracks_from_spotify(  # noqa: C901, PLR0912
         elif source == "top":
             tracks_data = spotify_service.get_top_tracks(limit=limit)
         else:
-            return {
-                "success": False,
-                "error": f"Fuente no reconocida: {source}"
-            }, 400
+            return Response(
+                {"success": False, "error": f"Fuente no reconocida: {source}"},
+                status=400,
+            )
 
         if not tracks_data:
             return {
@@ -507,4 +507,4 @@ def sync_tracks_from_spotify(  # noqa: C901, PLR0912
 
     except Exception as e:
         logger.error(f"Error sincronizando tracks: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}, 500
+        return Response({"success": False, "error": str(e)}, status=500)

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "sqlite": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-sqlite",
+        "/home/ijmadalena/PycharmProjects/moodsic/db.sqlite3"
+      ],
+      "type": "stdio"
+    }
+  }
+}

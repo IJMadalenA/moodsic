@@ -6,8 +6,6 @@ the RL calculator implementation from ml.reward.
 
 from __future__ import annotations
 
-from typing import Optional
-
 from apps.context.models import NewsContext, WeatherContext
 from apps.music.models import Track
 from ml.reward import get_reward_calculator
@@ -25,9 +23,9 @@ class RewardService:
 		user_feedback: str,
 		user,
 		track: Track,
-		weather_id: Optional[int] = None,
-		news_ids: Optional[list[int]] = None,
-		user_history: Optional[dict] = None,
+		weather_id: int | None = None,
+		news_ids: list[int] | None = None,
+		user_history: dict | None = None,
 	) -> float:
 		weather_context = self._get_weather_context(weather_id)
 		news_context = self._get_news_context(news_ids)
@@ -54,7 +52,7 @@ class RewardService:
 		return float(self.reward_calculator.normalize_reward(raw_reward))
 
 	@staticmethod
-	def _get_weather_context(weather_id: Optional[int]) -> Optional[dict]:
+	def _get_weather_context(weather_id: int | None) -> dict | None:
 		if not weather_id:
 			return None
 		weather = WeatherContext.objects.filter(id=weather_id).first()
@@ -68,7 +66,7 @@ class RewardService:
 		}
 
 	@staticmethod
-	def _get_news_context(news_ids: Optional[list[int]]) -> Optional[dict]:
+	def _get_news_context(news_ids: list[int] | None) -> dict | None:
 		if not news_ids:
 			return None
 		news_items = list(NewsContext.objects.filter(id__in=news_ids))

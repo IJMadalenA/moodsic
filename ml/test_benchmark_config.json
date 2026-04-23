@@ -1,0 +1,12 @@
+{
+  "scenarios": [
+    {
+      "name": "Quick Test",
+      "alpha": 0.5,
+      "episodes": 1
+    }
+  ],
+  "global_config": {
+    "days": 7
+  }
+}

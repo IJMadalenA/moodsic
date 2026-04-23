@@ -1,6 +1,8 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin
-from .models import WeatherContext, NewsContext
+
+from .models import NewsContext, WeatherContext
+
 
 @admin.register(WeatherContext)
 class WeatherContextAdmin(ModelAdmin):

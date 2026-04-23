@@ -3,10 +3,11 @@ Tests para los endpoints de la API de Interactions.
 """
 
 import json
-import pytest
 from datetime import timedelta
-from django.test import Client
+
+import pytest
 from django.contrib.auth import get_user_model
+from django.test import Client
 from django.utils import timezone
 
 User = get_user_model()
@@ -41,7 +42,7 @@ def admin_user(db):
 @pytest.fixture
 def track(db):
     """Fixture con track de test."""
-    from apps.music.models import Track, Album
+    from apps.music.models import Album, Track
 
     album = Album.objects.create(name="Test Album")
     return Track.objects.create(
@@ -74,8 +75,8 @@ class TestInteractionAPI:
 
     def test_user_stats_returns_dynamic_metrics(self, client, user):
         """El endpoint debe calcular géneros, artistas y duración de sesiones."""
-        from apps.music.models import Album, Artist, Track
         from apps.interactions.models import Interaction, InteractionSession
+        from apps.music.models import Album, Artist, Track
 
         album = Album.objects.create(name="Stats Album")
         artist = Artist.objects.create(
@@ -270,6 +271,7 @@ class TestDashboardAPI:
     def test_dashboard_metrics_returns_user_growth(self, client, admin_user, user, track):
         """El dashboard debe retornar métricas y crecimiento de usuarios."""
         from django.utils import timezone
+
         from apps.interactions.models import Interaction
 
         user2 = User.objects.create_user(

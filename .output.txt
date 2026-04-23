@@ -1,0 +1,227 @@
+Command finished with exit code 1.
+Command output:
+[WARNING] Unstaged files detected.
+[INFO] Stashing unstaged files to /home/ijmadalena/.cache/pre-commit/patch1776970842-354954.
+check-ast...............................(checks Python files for syntax errors).......................................Passed
+check for case conflicts..............................................................................................Passed
+check docstring is first..............................................................................................Passed
+check that executables have shebangs..............................................................(no files to check)Skipped
+check json........................................................................................(no files to check)Skipped
+check for merge conflicts.............................................................................................Passed
+check-shebang-scripts-are-executable....(checks that scripts with shebang lines are executable).......................Passed
+check-symlinks..........................(checks for broken symbolic links)........................(no files to check)Skipped
+check toml............................................................................................................Passed
+check-vcs-permalinks....................(checks for valid version control system permalinks)..........................Passed
+check xml.........................................................................................(no files to check)Skipped
+check yaml........................................................................................(no files to check)Skipped
+debug-statements........................(checks for debug statements in Python code)..................................Passed
+detect destroyed symlinks.............................................................................................Passed
+detect private key....................................................................................................Passed
+fix-byte-order-marker...................(removes byte order markers from files).......................................Passed
+fix end of files......................................................................................................Passed
+mixed line ending.....................................................................................................Passed
+fix requirements.txt..............................................................................(no files to check)Skipped
+trailing-whitespace.....................(removes trailing whitespace from files)......................................Passed
+ruff....................................(linting and auto-fix)........................................................Failed
+- hook id: ruff
+- exit code: 1
+- files were modified by this hook
+
+apps/music/services/spotify_music_service.py:29:17: T201 `print` found
+   |
+27 |                 me = self.client.current_user()
+28 |                 self.spotify_user_id = me["id"]
+29 |                 print(
+   |                 ^^^^^ T201
+30 |                     f"✅ [SERVICIO] Conexión establecida con ID de Spotify: {self.spotify_user_id}"
+31 |                 )
+   |
+   = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:33:17: T201 `print` found
+   |
+31 |                 )
+32 |             except Exception as e:
+33 |                 print(f"⚠️ [SERVICIO] Cliente obtenido pero no validado: {e}")
+   |                 ^^^^^ T201
+34 |                 self.client = None
+   |
+   = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:52:17: T201 `print` found
+   |
+51 |             if not token_obj:
+52 |                 print(
+   |                 ^^^^^ T201
+53 |                     f"❌ [AUTH] No existe SocialToken para el usuario {self.user.username}"
+54 |                 )
+   |
+   = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:59:17: T201 `print` found
+   |
+57 |             # 2. Verificar expiración (con margen de 60 segundos)
+58 |             if not token_obj.expires_at or token_obj.expires_at <= timezone.now():
+59 |                 print(
+   |                 ^^^^^ T201
+60 |                     f"🔄 [AUTH] Token caducado. Iniciando refresco para {self.user.username}..."
+61 |                 )
+   |
+   = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:69:13: T201 `print` found
+   |
+68 |         except Exception as e:
+69 |             print(f"❌ [AUTH] Error crítico obteniendo cliente: {e}")
+   |             ^^^^^ T201
+70 |             return None
+   |
+   = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:83:17: T201 `print` found
+   |
+81 |             # El refresh_token se guarda en 'token_secret' en la tabla SocialToken
+82 |             if not token_obj.token_secret:
+83 |                 print("❌ [REFRESH] No hay Refresh Token (token_secret) disponible.")
+   |                 ^^^^^ T201
+84 |                 return
+   |
+   = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:106:17: T201 `print` found
+    |
+104 |                 self.user.save()
+105 |
+106 |                 print(
+    |                 ^^^^^ T201
+107 |                     "✅ [REFRESH] Token actualizado en base de datos (SocialToken y User)."
+108 |                 )
+    |
+    = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:110:13: T201 `print` found
+    |
+108 |                 )
+109 |         except Exception as e:
+110 |             print(f"❌ [REFRESH] Error al refrescar en Spotify: {e}")
+    |             ^^^^^ T201
+111 |
+112 |     def create_playlist(self, name, description="Created by Moodsic", public=False):
+    |
+    = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:114:9: T201 `print` found
+    |
+112 |     def create_playlist(self, name, description="Created by Moodsic", public=False):
+113 |         """Crea una playlist verificando permisos (403 Forbidden)."""
+114 |         print(f"\n{'=' * 40}\nSOLICITUD: Crear Playlist '{name}'")
+    |         ^^^^^ T201
+115 |
+116 |         if not self.client or not self.spotify_user_id:
+    |
+    = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:117:13: T201 `print` found
+    |
+116 |         if not self.client or not self.spotify_user_id:
+117 |             print("❌ Error: Servicio no inicializado correctamente.")
+    |             ^^^^^ T201
+118 |             return None
+    |
+    = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:128:13: T201 `print` found
+    |
+126 |                 description=description,
+127 |             )
+128 |             print(f"✅ ÉXITO: Playlist creada ID: {playlist.get('id')}")
+    |             ^^^^^ T201
+129 |             return playlist
+    |
+    = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:132:13: T201 `print` found
+    |
+131 |         except spotipy.exceptions.SpotifyException as e:
+132 |             print(f"\n{'!' * 40}\nERROR DE SPOTIFY (HTTP {e.http_status})")
+    |             ^^^^^ T201
+133 |             if e.http_status == 403:
+134 |                 print("MENSAJE: Prohibido (403).")
+    |
+    = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:133:33: PLR2004 Magic value used in comparison, consider replacing `403` with a constant variable
+    |
+131 |         except spotipy.exceptions.SpotifyException as e:
+132 |             print(f"\n{'!' * 40}\nERROR DE SPOTIFY (HTTP {e.http_status})")
+133 |             if e.http_status == 403:
+    |                                 ^^^ PLR2004
+134 |                 print("MENSAJE: Prohibido (403).")
+135 |                 print(
+    |
+
+apps/music/services/spotify_music_service.py:134:17: T201 `print` found
+    |
+132 |             print(f"\n{'!' * 40}\nERROR DE SPOTIFY (HTTP {e.http_status})")
+133 |             if e.http_status == 403:
+134 |                 print("MENSAJE: Prohibido (403).")
+    |                 ^^^^^ T201
+135 |                 print(
+136 |                     "CAUSAS POSIBLES:\n1. Falta el scope 'playlist-modify-public' en settings.py"
+    |
+    = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:135:17: T201 `print` found
+    |
+133 |             if e.http_status == 403:
+134 |                 print("MENSAJE: Prohibido (403).")
+135 |                 print(
+    |                 ^^^^^ T201
+136 |                     "CAUSAS POSIBLES:\n1. Falta el scope 'playlist-modify-public' en settings.py"
+137 |                 )
+    |
+    = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:138:17: T201 `print` found
+    |
+136 |                     "CAUSAS POSIBLES:\n1. Falta el scope 'playlist-modify-public' en settings.py"
+137 |                 )
+138 |                 print(
+    |                 ^^^^^ T201
+139 |                     f"2. Tu email ({self.user.email}) no está en 'User Management' del Dashboard de Spotify."
+140 |                 )
+    |
+    = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:142:17: T201 `print` found
+    |
+140 |                 )
+141 |             else:
+142 |                 print(f"MENSAJE: {e.msg}")
+    |                 ^^^^^ T201
+143 |             print(f"{'!' * 40}\n")
+144 |             return None
+    |
+    = help: Remove `print`
+
+apps/music/services/spotify_music_service.py:143:13: T201 `print` found
+    |
+141 |             else:
+142 |                 print(f"MENSAJE: {e.msg}")
+143 |             print(f"{'!' * 40}\n")
+    |             ^^^^^ T201
+144 |             return None
+    |
+    = help: Remove `print`
+
+Found 27 errors (9 fixed, 18 remaining).
+No fixes available (17 hidden fixes can be enabled with the `--unsafe-fixes` option).
+
+ruff-format.............................(code formatter)..............................................................Failed
+- hook id: ruff-format
+- files were modified by this hook
+
+1 file reformatted, 1 file left unchanged
+
+[WARNING] Stashed changes conflicted with hook auto-fixes... Rolling back fixes...
+[INFO] Restored changes from /home/ijmadalena/.cache/pre-commit/patch1776970842-354954.

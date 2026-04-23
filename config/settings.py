@@ -23,9 +23,15 @@ env = environ.Env(
     DEBUG=(bool, False),
     DEVELOPMENT_MODE=(bool, False),
     LOCAL=(bool, False),
-    ALLOWED_HOSTS=(list, ""),
+    ALLOWED_HOSTS=(list, []),
     CSRF_TRUSTED_ORIGINS=(list, []),
     SECRET_KEY=(str, ""),
+    DATABASE_URL=(str, "sqlite:///db.sqlite3"),
+    POSTGRES_USER=(str, "postgres"),
+    POSTGRES_PASSWORD=(str, "postgres"),
+    POSTGRES_DB=(str, "moodsic"),
+    POSTGRES_HOST=(str, "localhost"),
+    POSTGRES_PORT=(int, 5432),
 )
 
 
@@ -43,13 +49,17 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 SECRET_KEY = env.str("DJANGO_SECRET_KEY", default="clave-secreta-temporal")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool("DEBUG", default=True)# https://docs.djangoproject.com/es/6/ref/settings/#debug.
+DEBUG = env.bool(
+    "DEBUG", default=True
+)  # https://docs.djangoproject.com/es/6/ref/settings/#debug.
 DEVELOPMENT_MODE = env.bool("DEVELOPMENT_MODE")
 IS_PRODUCTION = not DEVELOPMENT_MODE and not DEBUG
 
-SITE_ID = 2  # https://docs.djangoproject.com/es/6/ref/settings/#site-id.
+SITE_ID = 1  # https://docs.djangoproject.com/es/6/ref/settings/#site-id.
 
-ADMINS = env.list("ADMINS", default=[])  # https://docs.djangoproject.com/es/6/ref/settings/#admins.
+ADMINS = env.list(
+    "ADMINS", default=[]
+)  # https://docs.djangoproject.com/es/6/ref/settings/#admins.
 MANAGERS = ADMINS  # https://docs.djangoproject.com/es/6/ref/settings/#managers.
 
 ALLOWED_HOSTS = env.list(
@@ -131,34 +141,45 @@ AUTHENTICATION_BACKENDS = [
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
+# SPOTIPY CONFIGURATION
+SPOTIPY_CLIENT_ID = env.str("SPOTIPY_CLIENT_ID", default="")
+SPOTIPY_CLIENT_SECRET = env.str("SPOTIPY_CLIENT_SECRET", default="")
+SPOTIPY_REDIRECT_URI = env.str(
+    "SPOTIPY_REDIRECT_URI",
+    default="http://127.0.0.1:8000/accounts/spotify/login/callback/",
+)
+
 # SOCIAL ACCOUNT SETTINGS
 # settings.py
 
 # settings.py
 
 SOCIALACCOUNT_PROVIDERS = {
-    'spotify': {
-        'SCOPE': [
-            'user-read-email',
-            'user-read-private',
-            'playlist-modify-public',
-            'playlist-modify-private',
-            'user-top-read',
+    "spotify": {
+        "APP": {
+            "client_id": SPOTIPY_CLIENT_ID,
+            "secret": SPOTIPY_CLIENT_SECRET,
+        },
+        "SCOPE": [
+            "user-read-email",
+            "user-read-private",
+            "user-library-read",
+            "user-read-recently-played",
+            "user-top-read",
+            "playlist-modify-public",
+            "playlist-modify-private",
         ],
-        'AUTH_PARAMS': {
-            'show_dialog': 'true',
-            # ESTA LÍNEA ES EL TRUCO: Forzamos a Spotify a recibir los scopes por URL
-            'scope': 'user-read-email user-read-private playlist-modify-public playlist-modify-private user-top-read',
+        "AUTH_PARAMS": {
+            "show_dialog": "true",
         },
     }
 }
 
 SOCIALACCOUNT_STORE_TOKENS = True
-#SOCIALACCOUNT_ADAPTER = 'apps.users.adapters.MoodsicSocialAccountAdapter'
+SOCIALACCOUNT_ADAPTER = "apps.users.adapter.MoodsicSocialAccountAdapter"
 
 SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 SOCIALACCOUNT_EMAIL_REQUIRED = True
-
 
 
 LOGIN_REDIRECT_URL = "/"
@@ -173,16 +194,11 @@ ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 # --- FLUJO AUTOMÁTICO DE SPOTIFY ---
 SOCIALACCOUNT_AUTO_SIGNUP = True  # Salta el formulario de registro social
 SOCIALACCOUNT_QUERY_EMAIL = True  # Cruza el email de Spotify con tu usuario
-ACCOUNT_ADAPTER = 'allauth.account.adapter.DefaultAccountAdapter'
+ACCOUNT_ADAPTER = "allauth.account.adapter.DefaultAccountAdapter"
 
 # SEGURIDAD DE SESIÓN
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = False
-
-# SPOTIPY CONFIGURATION
-SPOTIPY_CLIENT_ID = env.str("SPOTIPY_CLIENT_ID", default="")
-SPOTIPY_CLIENT_SECRET = env.str("SPOTIPY_CLIENT_SECRET", default="")
-SPOTIPY_REDIRECT_URI = env.str("SPOTIPY_REDIRECT_URI", default="")
 
 # OPEN-METEO CONFIGURATION
 OPENMETEO_BASE_URL = "https://api.open-meteo.com/v1/forecast"
@@ -218,11 +234,16 @@ UNFOLD_CONFIG = {
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": env.db(
+        "DATABASE_URL",
+        default=f"postgres://{env.str('POSTGRES_USER', 'postgres')}:{env.str('POSTGRES_PASSWORD', 'postgres')}@{env.str('POSTGRES_HOST', 'localhost')}:{env.int('POSTGRES_PORT', 5432)}/{env.str('POSTGRES_DB', 'moodsic')}",
+    )
 }
+
+# Optional database configuration tuning
+if DATABASES["default"].get("ENGINE") == "django.db.backends.postgresql":
+    DATABASES["default"]["CONN_MAX_AGE"] = 600
+    DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 
 
 # Password validation
@@ -262,6 +283,10 @@ USE_TZ = True  # https://docs.djangoproject.com/es/6/ref/settings/#use-tz.
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

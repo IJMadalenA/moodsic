@@ -17,10 +17,10 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
             "Spotify info",
             {
                 "fields": (
-                    "spotify_id", 
-                    "avatar_url", 
+                    "spotify_id",
+                    "avatar_url",
                     "is_spotify_connected",
-                    "access_token", 
+                    "access_token",
                     "refresh_token",
                     "token_expires_at",
                 )

@@ -1,13 +1,13 @@
 """
-Comando: python manage.py sync_spotify_tracks
+Comando: uv run manage.py sync_spotify_tracks
 
 Sincroniza tracks desde la API de Spotify con la base de datos local.
 
 Ejemplos:
-    python manage.py sync_spotify_tracks --user-id 1 --liked
-    python manage.py sync_spotify_tracks --user-id 1 --top
-    python manage.py sync_spotify_tracks --playlist-id 3cEYpDpmLSvzlEecCXqDsF
-    python manage.py sync_spotify_tracks --user-id 1 --limit 100 --save-audio-features
+    uv run manage.py sync_spotify_tracks --user-id 1 --liked
+    uv run manage.py sync_spotify_tracks --user-id 1 --top
+    uv run manage.py sync_spotify_tracks --playlist-id 3cEYpDpmLSvzlEecCXqDsF
+    uv run manage.py sync_spotify_tracks --user-id 1 --limit 100 --save-audio-features
 """
 
 import logging
@@ -15,8 +15,8 @@ import logging
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 
+from apps.music.models import Album, Artist, Track, TrackAudioFeatures
 from apps.music.services.spotify_music_service import SpotifyMusicService
-from apps.music.models import Track, Album, Artist, TrackAudioFeatures
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ class Command(BaseCommand):
         log_level = logging.DEBUG if verbose else logging.INFO
         logging.basicConfig(level=log_level)
 
-        self.stdout.write(self.style.SUCCESS(f"\n[SYNC] Sincronizando tracks de Spotify"))
+        self.stdout.write(self.style.SUCCESS("\n[SYNC] Sincronizando tracks de Spotify"))
 
         try:
             # Determinar el usuario a usar
@@ -221,11 +221,11 @@ class Command(BaseCommand):
             # 3. Obtener características de audio si se solicita
             if save_audio_features and saved_count > 0:
                 self.stdout.write(self.style.SUCCESS("\n[AUDIO] Obteniendo características de audio..."))
-                
+
                 track_ids = [t.get("id") for t in tracks if t.get("id")]
                 if track_ids:
                     audio_features = spotify_service.get_audio_features(track_ids)
-                    
+
                     features_saved = 0
                     for track_id, features in audio_features.items():
                         try:
@@ -239,7 +239,7 @@ class Command(BaseCommand):
                             pass
                         except Exception as e:
                             logger.error(f"Error guardando audio features para {track_id}: {e}")
-                    
+
                     self.stdout.write(
                         self.style.SUCCESS(f"   [OK] {features_saved} registros de audio features guardados")
                     )
@@ -260,7 +260,7 @@ class Command(BaseCommand):
         except CommandError:
             raise
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"\n[ERROR] Error durante la sincronización:\n{str(e)}\n"))
+            self.stdout.write(self.style.ERROR(f"\n[ERROR] Error durante la sincronización:\n{e!s}\n"))
             if verbose:
                 import traceback
                 traceback.print_exc()

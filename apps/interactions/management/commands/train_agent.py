@@ -1,13 +1,13 @@
 """
-Comando: python manage.py train_agent
+Comando: uv run manage.py train_agent
 
 Entrena el agente DQN con datos de interacciones del sistema.
 
 Ejemplos:
-    python manage.py train_agent --episodes 100
-    python manage.py train_agent --episodes 50 --days 30 --batch-size 64 --save
-    python manage.py train_agent --episodes 10 --visualize
-    python manage.py train_agent --with-synthetic-context --episodes 20
+    uv run manage.py train_agent --episodes 100
+    uv run manage.py train_agent --episodes 50 --days 30 --batch-size 64 --save
+    uv run manage.py train_agent --episodes 10 --visualize
+    uv run manage.py train_agent --with-synthetic-context --episodes 20
 """
 
 import logging
@@ -202,5 +202,5 @@ class Command(BaseCommand):
             )
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"\n❌ Error durante el entrenamiento:\n{str(e)}\n"))
+            self.stdout.write(self.style.ERROR(f"\n❌ Error durante el entrenamiento:\n{e!s}\n"))
             raise CommandError(str(e))

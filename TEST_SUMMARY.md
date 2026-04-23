@@ -102,13 +102,13 @@ All reinforcement learning components thoroughly tested and working:
 ## Test Execution Command
 ```bash
 # Run all ML tests (36 tests)
-python -m pytest ml/tests/ -v
+uv run pytest ml/tests/ -v
 
 # Run API tests (5 tests)
-python -m pytest apps/interactions/tests/test_api.py -v
+uv run pytest apps/interactions/tests/test_api.py -v
 
 # Run both with summary
-python -m pytest ml/tests/ apps/interactions/tests/test_api.py --tb=no -q
+uv run pytest ml/tests/ apps/interactions/tests/test_api.py --tb=no -q
 ```
 
 ## Next Steps
@@ -116,7 +116,7 @@ python -m pytest ml/tests/ apps/interactions/tests/test_api.py --tb=no -q
 ### 1. Training Script Execution ✅ COMPLETED
 ```bash
 # Training script executed successfully
-python ml/training.py train --episodes 1 --batch-size 32 --save
+uv run ml/training.py train --episodes 1 --batch-size 32 --save
 
 # Output:
 # ✅ Model saved: ml/models/dqn_agent_20260325_225939.h5 (33.7 KB)

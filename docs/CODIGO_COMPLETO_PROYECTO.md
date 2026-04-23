@@ -9,21 +9,30 @@ Total de archivos incluidos: 151
 Ruta completa: Dockerfile
 
 ```text
-FROM python:3.14-slim
+FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-RUN python -m pip install --upgrade pip
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Sync dependencies (non-dev only for production)
+RUN uv sync --frozen --no-dev
 
 COPY . .
 
-CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
+CMD ["uv", "run", "manage.py", "runserver", "0.0.0.0:8000"]
 ```
 
 ## Archivo: Makefile
@@ -585,7 +594,7 @@ class Command(BaseCommand):
             missing_text = ", ".join(missing)
             raise CommandError(
                 "Missing required tables for synthetic context seeding: "
-                f"{missing_text}. Run 'python manage.py migrate' first."
+                f"{missing_text}. Run 'uv run manage.py migrate' first."
             )
 ```
 
@@ -3266,15 +3275,15 @@ Ruta completa: apps/interactions/management/commands/collect_interactions.py
 
 ```python
 """
-Comando: python manage.py collect_interactions
+Comando: uv run manage.py collect_interactions
 
 Recopila y procesa interacciones del usuario, calculando métricas agregadas.
 
 Ejemplos:
-    python manage.py collect_interactions
-    python manage.py collect_interactions --days 7
-    python manage.py collect_interactions --days 30 --user-id 1
-    python manage.py collect_interactions --generate-report
+    uv run manage.py collect_interactions
+    uv run manage.py collect_interactions --days 7
+    uv run manage.py collect_interactions --days 30 --user-id 1
+    uv run manage.py collect_interactions --generate-report
 """
 
 import logging
@@ -3481,15 +3490,15 @@ Ruta completa: apps/interactions/management/commands/evaluate_model.py
 
 ```python
 """
-Comando: python manage.py evaluate_model
+Comando: uv run manage.py evaluate_model
 
 Evalúa un modelo entrenado en un conjunto de prueba de interacciones.
 
 Ejemplos:
-    python manage.py evaluate_model --model-path ml/models/dqn_agent_20260325_225939.h5
-    python manage.py evaluate_model --model-path ml/models/model.h5 --test-days 7
-    python manage.py evaluate_model --model-path ml/models/model.h5 --show-recommendations
-    python manage.py evaluate_model --with-synthetic-context --auto-train --benchmark-episodes 5
+    uv run manage.py evaluate_model --model-path ml/models/dqn_agent_20260325_225939.h5
+    uv run manage.py evaluate_model --model-path ml/models/model.h5 --test-days 7
+    uv run manage.py evaluate_model --model-path ml/models/model.h5 --show-recommendations
+    uv run manage.py evaluate_model --with-synthetic-context --auto-train --benchmark-episodes 5
 """
 
 import json
@@ -3737,13 +3746,13 @@ Ruta completa: apps/interactions/management/commands/moodsic_help.py
 
 ```python
 """
-Comando: python manage.py moodsic_help
+Comando: uv run manage.py moodsic_help
 
 Muestra información de ayuda sobre los comandos de Moodsic.
 
 Ejemplos:
-    python manage.py moodsic_help
-    python manage.py moodsic_help --command train_agent
+    uv run manage.py moodsic_help
+    uv run manage.py moodsic_help --command train_agent
 """
 
 from django.core.management.base import BaseCommand
@@ -3772,7 +3781,7 @@ class Command(BaseCommand):
 COMANDOS DISPONIBLES:
 
 1️⃣  TRAIN_AGENT - Entrena el modelo DQN
-   └─ python manage.py train_agent [OPTIONS]
+   └─ uv run manage.py train_agent [OPTIONS]
 
    Opciones:
       --episodes NUM       Número de episodios (default: 50)
@@ -3783,12 +3792,12 @@ COMANDOS DISPONIBLES:
       --verbose           Logs detallados
 
    Ejemplos:
-      $ python manage.py train_agent --episodes 100 --save
-      $ python manage.py train_agent --episodes 50 --days 30 --batch-size 64 --save --visualize
+      $ uv run manage.py train_agent --episodes 100 --save
+      $ uv run manage.py train_agent --episodes 50 --days 30 --batch-size 64 --save --visualize
 
 
 2️⃣  EVALUATE_MODEL - Evalúa un modelo entrenado
-   └─ python manage.py evaluate_model [OPTIONS]
+   └─ uv run manage.py evaluate_model [OPTIONS]
 
    Opciones:
       --model-path PATH           Ruta del modelo (REQUERIDO)
@@ -3797,12 +3806,12 @@ COMANDOS DISPONIBLES:
       --verbose                  Logs detallados
 
    Ejemplos:
-      $ python manage.py evaluate_model --model-path ml/models/dqn_agent.h5
-      $ python manage.py evaluate_model --model-path ml/models/dqn_agent.h5 --show-recommendations
+      $ uv run manage.py evaluate_model --model-path ml/models/dqn_agent.h5
+      $ uv run manage.py evaluate_model --model-path ml/models/dqn_agent.h5 --show-recommendations
 
 
 3️⃣  COLLECT_INTERACTIONS - Recopila y procesa interacciones
-   └─ python manage.py collect_interactions [OPTIONS]
+   └─ uv run manage.py collect_interactions [OPTIONS]
 
    Opciones:
       --days NUM              Días de interacciones (default: 7)
@@ -3812,13 +3821,13 @@ COMANDOS DISPONIBLES:
       --verbose              Logs detallados
 
    Ejemplos:
-      $ python manage.py collect_interactions --days 7
-      $ python manage.py collect_interactions --user-id 1 --generate-report
-      $ python manage.py collect_interactions --days 30 --save-session
+      $ uv run manage.py collect_interactions --days 7
+      $ uv run manage.py collect_interactions --user-id 1 --generate-report
+      $ uv run manage.py collect_interactions --days 30 --save-session
 
 
 4️⃣  SYNC_SPOTIFY_TRACKS - Sincroniza tracks desde Spotify
-   └─ python manage.py sync_spotify_tracks [OPTIONS]
+   └─ uv run manage.py sync_spotify_tracks [OPTIONS]
 
    Opciones:
       --user-id ID          ID del usuario a sincronizar (opcional)
@@ -3828,24 +3837,24 @@ COMANDOS DISPONIBLES:
       --verbose             Logs detallados
 
    Ejemplos:
-      $ python manage.py sync_spotify_tracks
-      $ python manage.py sync_spotify_tracks --user-id 1 --limit 100
-      $ python manage.py sync_spotify_tracks --playlist-id spotify:playlist:123abc
+      $ uv run manage.py sync_spotify_tracks
+      $ uv run manage.py sync_spotify_tracks --user-id 1 --limit 100
+      $ uv run manage.py sync_spotify_tracks --playlist-id spotify:playlist:123abc
 
 
 📚 WORKFLOW RECOMENDADO:
 
    1. Entrena el agente:
-      $ python manage.py train_agent --episodes 100 --days 30 --save
+      $ uv run manage.py train_agent --episodes 100 --days 30 --save
 
    2. Recopila interacciones:
-      $ python manage.py collect_interactions --days 7 --save-session
+      $ uv run manage.py collect_interactions --days 7 --save-session
 
    3. Evalúa el modelo:
-      $ python manage.py evaluate_model --model-path ml/models/dqn_agent.h5
+      $ uv run manage.py evaluate_model --model-path ml/models/dqn_agent.h5
 
    4. Sincroniza tracks:
-      $ python manage.py sync_spotify_tracks --limit 100
+      $ uv run manage.py sync_spotify_tracks --limit 100
 
 
 💡 TIPS:
@@ -3868,7 +3877,7 @@ COMANDOS DISPONIBLES:
 ❓ PARA MÁS INFORMACIÓN:
 
    • Documentación: Ver DEVELOPMENT.md
-   • Tests: python -m pytest ml/tests/ -v
+   • Tests: uv run pytest ml/tests/ -v
    • Admin: http://localhost:8000/admin
 
 ╔════════════════════════════════════════════════════════════════════════════╗
@@ -3879,7 +3888,7 @@ COMANDOS DISPONIBLES:
         if command:
             # Mostrar ayuda de comando específico
             self.stdout.write(f"\n📖 Ayuda para: {command}\n")
-            self.stdout.write(f"Ejecuta: python manage.py {command} --help\n")
+            self.stdout.write(f"Ejecuta: uv run manage.py {command} --help\n")
         else:
             # Mostrar ayuda general
             self.stdout.write(help_text)
@@ -4039,15 +4048,15 @@ Ruta completa: apps/interactions/management/commands/sync_spotify_tracks.py
 
 ```python
 """
-Comando: python manage.py sync_spotify_tracks
+Comando: uv run manage.py sync_spotify_tracks
 
 Sincroniza tracks desde la API de Spotify con la base de datos local.
 
 Ejemplos:
-    python manage.py sync_spotify_tracks --user-id 1 --liked
-    python manage.py sync_spotify_tracks --user-id 1 --top
-    python manage.py sync_spotify_tracks --playlist-id 3cEYpDpmLSvzlEecCXqDsF
-    python manage.py sync_spotify_tracks --user-id 1 --limit 100 --save-audio-features
+    uv run manage.py sync_spotify_tracks --user-id 1 --liked
+    uv run manage.py sync_spotify_tracks --user-id 1 --top
+    uv run manage.py sync_spotify_tracks --playlist-id 3cEYpDpmLSvzlEecCXqDsF
+    uv run manage.py sync_spotify_tracks --user-id 1 --limit 100 --save-audio-features
 """
 
 import logging
@@ -4313,15 +4322,15 @@ Ruta completa: apps/interactions/management/commands/train_agent.py
 
 ```python
 """
-Comando: python manage.py train_agent
+Comando: uv run manage.py train_agent
 
 Entrena el agente DQN con datos de interacciones del sistema.
 
 Ejemplos:
-    python manage.py train_agent --episodes 100
-    python manage.py train_agent --episodes 50 --days 30 --batch-size 64 --save
-    python manage.py train_agent --episodes 10 --visualize
-    python manage.py train_agent --with-synthetic-context --episodes 20
+    uv run manage.py train_agent --episodes 100
+    uv run manage.py train_agent --episodes 50 --days 30 --batch-size 64 --save
+    uv run manage.py train_agent --episodes 10 --visualize
+    uv run manage.py train_agent --with-synthetic-context --episodes 20
 """
 
 import logging
@@ -10943,6 +10952,7 @@ import sys
 from pathlib import Path
 
 import environ
+import dj_database_url
 
 logger = logging.getLogger(__name__)
 
@@ -11119,12 +11129,21 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+if env.str("POSTGRES_HOST", default=""):
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=f"postgres://{env.str('POSTGRES_USER', 'postgres')}:{env.str('POSTGRES_PASSWORD', 'postgres')}@{env.str('POSTGRES_HOST')}:5432/{env.str('POSTGRES_DB', 'moodsic')}",
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # Password validation
@@ -11303,8 +11322,8 @@ services:
       dockerfile: Dockerfile
     command: >
       sh -c "
-      python manage.py migrate &&
-      python manage.py runserver 0.0.0.0:8000
+      uv run manage.py migrate &&
+      uv run manage.py runserver 0.0.0.0:8000
       "
     depends_on:
       postgres:
@@ -11314,7 +11333,7 @@ services:
     environment:
       - POSTGRES_HOST=postgres
     healthcheck:
-      test: ["CMD-SHELL", "python manage.py check"]
+      test: ["CMD-SHELL", "uv run manage.py check"]
       interval: 3s
       timeout: 3s
       retries: 3
@@ -11345,8 +11364,6 @@ services:
       retries: 10
     image: postgres:18.1-alpine
     restart: always
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     deploy:
@@ -11369,7 +11386,7 @@ services:
       links:
         - 'postgres:pgsql-server'
       ports:
-        - "8080:80"
+        - "5050:80"
       restart: always
       volumes:
         - pgadmin_data:/var/lib/pgadmin/
@@ -11412,10 +11429,10 @@ ACTIVAR EL ENTORNO VIRTUAL
     -   .\venv\Scripts\activate
 
 INTALAR TODO LO NECESARIO
-    - pip install -r requirements.txt
+    - uv sync
 
 LEVANTAR
-    - python manage.py runserver
+    - uv run manage.py runserver
 
 ```
 
@@ -13936,32 +13953,36 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "dj-database-url>=3.1.2",
-    "django>=6.0.2",
-    "django-allauth>=65.14.3",
-    "django-cities-light>=3.11",
-    "django-countries>=8.2.0",
-    "django-environ>=0.13.0",
-    "django-ninja>=1.5.3",
-    "django-unfold>=0.80.2",
-    "psycopg>=3.3.3",
-    "requests>=2.32.5",
-    "spotipy>=2.25.2", # Librería para consumir de la API de Spotify.
-    "virtualenv>=20.39.0",
+    "dj-database-url==3.1.2",
+    "django==6.0.4",
+    "django-allauth==65.16.0",
+    "django-cities-light==3.11",
+    "django-countries==8.2.0",
+    "django-environ==0.13.0",
+    "django-ninja==1.6.2",
+    "django-unfold==0.90.0",
+    "numpy==2.4.4",
+    "psycopg[binary]==3.3.3",
+    "pydantic==2.13.1",
+    "redis==7.4.0",
+    "requests==2.33.1",
+    "spotipy==2.26.0", # Librería para consumir de la API de Spotify.
+    "tensorflow>=2.21.0",
+    "virtualenv==21.2.4",
 ]
 
 [dependency-groups]
 dev = [
-    "pre-commit>=4.5.1",
-    "pytest>=9.0.2",
-    "pytest-cov>=7.0.0",
-    "pytest-django>=4.12.0",
-    "pytest-mock>=3.15.1",
-    "ruff>=0.15.2",
-    "ty>=0.0.18",
+    "coverage==7.13.5",
+    "pre-commit==4.5.1",
+    "pytest==9.0.3",
+    "pytest-cov==7.1.0",
+    "pytest-django==4.12.0",
+    "pytest-mock==3.15.1",
+    "ruff==0.15.11",
+    "ty==0.0.31",
 ]
 
 [tool.uv]

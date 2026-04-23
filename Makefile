@@ -3,7 +3,7 @@
 # Variables
 DC := docker compose
 UV := uv run
-Django_Command := python manage.py
+Django_Command := uv run manage.py
 CHECK_TAGS := admin caches commands compatibility database files models security staticfiles templates translation urls
 
 .PHONY: pull
@@ -41,4 +41,4 @@ shell:
 .PHONY: test
 test:
 	clear
-	uv run pytest
+	$(DC) exec django-web uv run pytest

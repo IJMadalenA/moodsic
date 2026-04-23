@@ -8,7 +8,6 @@ Calcula el reward basándose en:
 - Historico del usuario
 """
 
-from typing import Dict, Optional
 
 import numpy as np
 
@@ -47,10 +46,10 @@ class RewardCalculator:
 
     def calculate_reward(
         self,
-        user_feedback: Optional[str] = None,
-        weather_context: Optional[Dict] = None,
-        track_audio_features: Optional[Dict] = None,
-        user_history: Optional[Dict] = None,
+        user_feedback: str | None = None,
+        weather_context: dict | None = None,
+        track_audio_features: dict | None = None,
+        user_history: dict | None = None,
     ) -> float:
         """
         Calcula el reward total basándose en múltiples factores.
@@ -100,7 +99,7 @@ class RewardCalculator:
 
         return reward
 
-    def _calculate_feedback_reward(self, user_feedback: Optional[str]) -> float:
+    def _calculate_feedback_reward(self, user_feedback: str | None) -> float:
         """
         Calcula la recompensa basada en el feedback del usuario.
         
@@ -118,7 +117,7 @@ class RewardCalculator:
         else:
             return 0.0
 
-    def _calculate_context_reward(self, weather_context: Dict) -> float:
+    def _calculate_context_reward(self, weather_context: dict) -> float:
         """
         Calcula bonificación basada en el contexto del clima.
         
@@ -152,7 +151,7 @@ class RewardCalculator:
 
         return reward
 
-    def _calculate_audio_feature_reward(self, audio_features: Dict) -> float:
+    def _calculate_audio_feature_reward(self, audio_features: dict) -> float:
         """
         Calcula bonificación basada en las características de audio del track.
         
@@ -192,8 +191,8 @@ class RewardCalculator:
 
     def _calculate_consistency_reward(
         self,
-        current_audio_features: Optional[Dict],
-        user_history: Dict,
+        current_audio_features: dict | None,
+        user_history: dict,
     ) -> float:
         """
         Calcula bonificación basada en la consistencia con preferencias del usuario.

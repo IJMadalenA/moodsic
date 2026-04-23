@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import csv
+import json
 import statistics
 from pathlib import Path
 from typing import Any
@@ -96,7 +96,7 @@ class Command(BaseCommand):
 
         rows: list[dict[str, Any]] = []
         for fpath in files:
-            with open(fpath, "r", encoding="utf-8") as f:
+            with open(fpath, encoding="utf-8") as f:
                 data = json.load(f)
 
             options_data = data.get("options", {})

@@ -128,5 +128,5 @@ class Command(BaseCommand):
             missing_text = ", ".join(missing)
             raise CommandError(
                 "Missing required tables for synthetic context seeding: "
-                f"{missing_text}. Run 'python manage.py migrate' first."
+                f"{missing_text}. Run 'uv run manage.py migrate' first."
             )

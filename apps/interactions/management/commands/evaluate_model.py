@@ -1,13 +1,13 @@
 """
-Comando: python manage.py evaluate_model
+Comando: uv run manage.py evaluate_model
 
 Evalúa un modelo entrenado en un conjunto de prueba de interacciones.
 
 Ejemplos:
-    python manage.py evaluate_model --model-path ml/models/dqn_agent_20260325_225939.h5
-    python manage.py evaluate_model --model-path ml/models/model.h5 --test-days 7
-    python manage.py evaluate_model --model-path ml/models/model.h5 --show-recommendations
-    python manage.py evaluate_model --with-synthetic-context --auto-train --benchmark-episodes 5
+    uv run manage.py evaluate_model --model-path ml/models/dqn_agent_20260325_225939.h5
+    uv run manage.py evaluate_model --model-path ml/models/model.h5 --test-days 7
+    uv run manage.py evaluate_model --model-path ml/models/model.h5 --show-recommendations
+    uv run manage.py evaluate_model --with-synthetic-context --auto-train --benchmark-episodes 5
 """
 
 import json
@@ -18,9 +18,13 @@ from pathlib import Path
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.interactions.services.reward_service import get_reward_service
-from ml.state_builder import get_state_builder
-from ml.training import LOGS_DIR, MODELS_DIR, ModelEvaluator, ModelTrainer, TrainingDataLoader
+from ml.training import (
+    LOGS_DIR,
+    MODELS_DIR,
+    ModelEvaluator,
+    ModelTrainer,
+    TrainingDataLoader,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -206,10 +210,10 @@ class Command(BaseCommand):
             )
 
         except FileNotFoundError as e:
-            self.stdout.write(self.style.ERROR(f"\n❌ Archivo no encontrado: {str(e)}\n"))
+            self.stdout.write(self.style.ERROR(f"\n❌ Archivo no encontrado: {e!s}\n"))
             raise CommandError(str(e))
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"\n❌ Error durante la evaluación:\n{str(e)}\n"))
+            self.stdout.write(self.style.ERROR(f"\n❌ Error durante la evaluación:\n{e!s}\n"))
             raise CommandError(str(e))
 
     @staticmethod

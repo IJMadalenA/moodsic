@@ -2,8 +2,9 @@
 Tests para el módulo State Builder.
 """
 
-import pytest
 import numpy as np
+import pytest
+
 from ml.state_builder import StateBuilder, get_state_builder
 
 

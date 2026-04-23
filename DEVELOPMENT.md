@@ -6,11 +6,10 @@
 #### 1. Environment Setup
 ```bash
 # Create virtual environment
-python -m venv venv
-venv\Scripts\activate
+uv venv
 
 # Install dependencies
-pip install -r requirements.txt
+uv sync
 
 # Configure environment
 cp .env.example .env
@@ -24,16 +23,16 @@ cp .env.example .env
 createdb moodsic  # PostgreSQL
 
 # Run migrations
-python manage.py migrate
+uv run manage.py migrate
 
 # Create superuser
-python manage.py createsuperuser
+uv run manage.py createsuperuser
 ```
 
 #### 3. Development Server
 ```bash
 # Start Django development server
-python manage.py runserver
+uv run manage.py runserver
 
 # Visit http://localhost:8000/admin for admin panel
 ```
@@ -45,16 +44,16 @@ python manage.py runserver
 ### Run All Tests
 ```bash
 # ML Component Tests (36 tests)
-pytest ml/tests/ -v
+uv run pytest ml/tests/ -v
 
 # API Integration Tests (5 tests)
-pytest apps/interactions/tests/test_api.py -v
+uv run pytest apps/interactions/tests/test_api.py -v
 
 # Model Tests (17 tests)
-pytest apps/interactions/tests/test_models.py -v
+uv run pytest apps/interactions/tests/test_models.py -v
 
 # All tests (41 tests total)
-pytest ml/tests/ apps/interactions/tests/ -v --cov=ml --cov=apps
+uv run pytest ml/tests/ apps/interactions/tests/ -v --cov=ml --cov=apps
 ```
 
 ### Test Results ✅
@@ -71,7 +70,7 @@ pytest ml/tests/ apps/interactions/tests/ -v --cov=ml --cov=apps
 ### 1. Quick Training (Test Run)
 ```bash
 # Train for 1 episode (testing only)
-python ml/training.py train --episodes 1 --batch-size 32 --save
+uv run ml/training.py train --episodes 1 --batch-size 32 --save
 
 # Output:
 # - Model saved to: ml/models/dqn_agent_YYYYMMDD_HHMMSS.h5
@@ -81,13 +80,13 @@ python ml/training.py train --episodes 1 --batch-size 32 --save
 ### 2. Production Training
 ```bash
 # Train for 50 episodes using last 30 days of data
-python ml/training.py train --episodes 50 --days 30 --batch-size 64 --save
+uv run ml/training.py train --episodes 50 --days 30 --batch-size 64 --save
 
 # Evaluate model performance
-python ml/training.py eval --model-path ml/models/dqn_agent_20260325_225939.h5
+uv run ml/training.py eval --model-path ml/models/dqn_agent_20260325_225939.h5
 
 # Visualize training metrics
-python ml/training.py visualize
+uv run ml/training.py visualize
 ```
 
 ### Training Parameters
@@ -242,7 +241,7 @@ moodsic/
 ## Next Steps
 
 1. Validate Spotify OAuth flow in a live environment using valid `SPOTIPY_CLIENT_ID`, `SPOTIPY_CLIENT_SECRET`, and `SPOTIPY_REDIRECT_URI`.
-2. Add synthetic and real user interaction capture for RL training data, then run `python ml/training.py train --save` with real session data.
+2. Add synthetic and real user interaction capture for RL training data, then run `uv run ml/training.py train --save` with real session data.
 3. Add a lightweight load-testing plan based on user session creation and playlist generation.
 4. Harden deployment with environment-specific settings, `ALLOWED_HOSTS`, and secret management.
 5. Document deployment and CI processes in `README.md` and `DEVELOPMENT.md`.
@@ -277,7 +276,7 @@ moodsic/
 ## Support & Documentation
 
 - **Test Report**: See `TEST_SUMMARY.md`
-- **Training Guide**: Run `python ml/training.py --help`
+- **Training Guide**: Run `uv run ml/training.py --help`
 - **API Documentation**: Visit `/api/interactions/docs/` (Swagger)
 - **Admin Panel**: Visit `/admin`
 

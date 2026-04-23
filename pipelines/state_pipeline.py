@@ -1,6 +1,5 @@
 """Build end-to-end RL state from persisted context data."""
 
-from typing import Optional
 
 from django.contrib.auth import get_user_model
 
@@ -10,7 +9,7 @@ from ml.state_builder import get_state_builder
 User = get_user_model()
 
 
-def build_latest_state_for_user(user: User, weather_id: Optional[int] = None):
+def build_latest_state_for_user(user: User, weather_id: int | None = None):
 	"""Construct a normalized state vector using latest weather and news rows."""
 	builder = get_state_builder()
 

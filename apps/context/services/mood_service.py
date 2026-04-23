@@ -1,5 +1,5 @@
-from typing import ClassVar, TypedDict
 import logging
+from typing import ClassVar, TypedDict
 
 logger = logging.getLogger(__name__)
 
@@ -92,13 +92,13 @@ class MoodService:
         # 1. Obtener la configuración base según el clima
         mapping = cls.MOOD_MAPPING.get(main_status, cls.MOOD_MAPPING["Clouds"])
         params: MusicParameters = mapping["params"].copy()
-        
+
         # 2. Ajuste de VALENCE (Felicidad musical) según noticias
         # El sentimiento de las noticias modifica la felicidad de la música
         valence_adjustment = avg_sentiment * 0.25
         new_valence = params.get("target_valence", 0.5) + valence_adjustment
         params["target_valence"] = max(0.0, min(1.0, round(new_valence, 2)))
-        
+
         # 3. Ajuste de ENERGY según intensidad de noticias
         # Si las noticias son muy extremas (muy buenas o muy malas), subimos la energía
         if abs(avg_sentiment) > 0.6:
@@ -109,7 +109,7 @@ class MoodService:
             f"Mood Engine -> Clima: {main_status}, Sentimiento: {avg_sentiment:.2f} | "
             f"Resultado -> Valence: {params['target_valence']}, Energy: {params['target_energy']}"
         )
-        
+
         return params
 
     @classmethod
@@ -118,12 +118,12 @@ class MoodService:
         Genera una etiqueta de texto descriptiva del estado de ánimo combinado.
         """
         base_mood = cls.MOOD_MAPPING.get(main_status, cls.MOOD_MAPPING["Clouds"])["mood"]
-        
+
         if avg_sentiment > 0.4:
             return f"Very Positive & {base_mood}"
         elif avg_sentiment < -0.4:
             return f"Somber & {base_mood}"
-        
+
         return base_mood
 
     @classmethod

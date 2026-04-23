@@ -231,7 +231,7 @@ class InteractionSession(models.Model):
         """
         Calcula las métricas agregadas de la sesión según las interacciones.
         """
-        from django.db.models import Avg, Count, Q
+        from django.db.models import Avg
 
         interactions = Interaction.objects.filter(session_id=self.session_id)
 

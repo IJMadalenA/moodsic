@@ -2,10 +2,11 @@
 Tests para los modelos de Interaction.
 """
 
+from decimal import Decimal
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from decimal import Decimal
 
 from apps.interactions.models import Interaction, InteractionSession
 
@@ -25,7 +26,7 @@ def user(db):
 @pytest.fixture
 def track(db):
     """Fixture con track de test."""
-    from apps.music.models import Track, Album
+    from apps.music.models import Album, Track
 
     album = Album.objects.create(name="Test Album")
     return Track.objects.create(

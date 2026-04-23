@@ -1,9 +1,11 @@
 import logging
+
+from cities_light.models import City
 from django.contrib.auth.signals import user_logged_in
 from django.dispatch import receiver
-from apps.context.services.weather_service import WeatherService
+
 from apps.context.services.news_service import NewsService
-from cities_light.models import City
+from apps.context.services.weather_service import WeatherService
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +27,12 @@ def automate_context_on_login(sender, request, user, **kwargs):
     try:
         # Buscamos Madrid como ciudad por defecto para las pruebas
         city = City.objects.filter(name="Madrid").first() or City.objects.first()
-        
+
         if city:
             WeatherService.fetch_and_store_weather(city)
             logger.info(f"✅ Clima para {city.name} actualizado.")
         else:
             logger.warning("⚠️ No se encontró ninguna ciudad en la DB. El clima no se cargó.")
-            
+
     except Exception as e:
         logger.error(f"❌ Error cargando clima: {e}")

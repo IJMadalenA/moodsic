@@ -7,11 +7,9 @@ incluyendo: clima, noticias, características de audio, historico del usuario.
 La salida es un vector normalizado que se usa como entrada al agente RL.
 """
 
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from django.contrib.auth import get_user_model
-from django.db.models import Avg, Q
 from django.utils import timezone
 
 User = get_user_model()
@@ -69,10 +67,10 @@ class StateBuilder:
     def build_state(
         self,
         user: "User",
-        weather_context: Optional[Dict] = None,
-        current_track: Optional[Dict] = None,
-        time_of_day: Optional[str] = None,
-        news_contexts: Optional[List[Dict]] = None,
+        weather_context: dict | None = None,
+        current_track: dict | None = None,
+        time_of_day: str | None = None,
+        news_contexts: list[dict] | None = None,
     ) -> np.ndarray:
         """
         Construye el vector de estado completo.
@@ -125,7 +123,7 @@ class StateBuilder:
 
         return state.astype(np.float32)
 
-    def _extract_weather_features(self, weather_context: Optional[Dict]) -> np.ndarray:
+    def _extract_weather_features(self, weather_context: dict | None) -> np.ndarray:
         """
         Extrae features normalizadas del contexto climático.
         
@@ -191,7 +189,7 @@ class StateBuilder:
 
         return np.array(features[:self.weather_features], dtype=np.float32)
 
-    def _extract_audio_features(self, current_track: Optional[Dict]) -> np.ndarray:
+    def _extract_audio_features(self, current_track: dict | None) -> np.ndarray:
         """
         Extrae features de audio normalizadas del track actual.
         
@@ -259,8 +257,6 @@ class StateBuilder:
         features = []
 
         try:
-            from apps.music.models import Track
-            from apps.interactions.models import Interaction  # cuando exista
 
             # Skip rate (proporción de tracks que skipped)
             # Esto requeriría un modelo Interaction que aún no existe
@@ -291,8 +287,8 @@ class StateBuilder:
 
     def _extract_context_features(
         self,
-        time_of_day: Optional[str],
-        news_contexts: Optional[List[Dict]] = None,
+        time_of_day: str | None,
+        news_contexts: list[dict] | None = None,
     ) -> np.ndarray:
         """
         Extrae features contextuales: hora del día, día de la semana, temporada.
@@ -349,7 +345,7 @@ class StateBuilder:
         return np.array(features[:self.context_embedding_dim], dtype=np.float32)
 
     @staticmethod
-    def _extract_news_features(news_contexts: Optional[List[Dict]]) -> List[float]:
+    def _extract_news_features(news_contexts: list[dict] | None) -> list[float]:
         """Return compact news-derived features for the context embedding."""
         if not news_contexts:
             return [0.5, 0.0, 0.0]
@@ -370,7 +366,7 @@ class StateBuilder:
         return [norm_sentiment, breaking_ratio, norm_news_volume]
 
     @staticmethod
-    def _normalize(value: float, range_dict: Dict) -> float:
+    def _normalize(value: float, range_dict: dict) -> float:
         """
         Normaliza un valor al rango [0, 1] usando min-max scaling.
         
@@ -391,7 +387,7 @@ class StateBuilder:
         return np.clip(norm, 0.0, 1.0)
 
     @staticmethod
-    def _encode_time_of_day(time_of_day: Optional[str]) -> List[float]:
+    def _encode_time_of_day(time_of_day: str | None) -> list[float]:
         """
         One-hot encoding de la hora del día.
         
@@ -435,7 +431,7 @@ class StateBuilder:
             return "autumn"
 
     @staticmethod
-    def _encode_season(season: str) -> List[float]:
+    def _encode_season(season: str) -> list[float]:
         """
         One-hot encoding de la estación.
         

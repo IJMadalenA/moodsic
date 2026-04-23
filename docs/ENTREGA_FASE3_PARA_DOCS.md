@@ -57,9 +57,9 @@ Esto significa que el producto sí funciona realmente, aunque la validación fin
 ### Requisitos previos
 
 - Python 3.12 o superior;
-- Git instalado;
-- entorno virtual de Python;
-- dependencias del proyecto instalables desde requirements.txt;
+- uv instalado;
+- entorno virtual gestionado por uv;
+- dependencias del proyecto gestionadas con uv;
 - opcionalmente, credenciales reales de Spotify y NewsAPI.
 
 ### Variables de entorno
@@ -99,23 +99,22 @@ RECOMMENDER_HISTORY_WEIGHT=0.4
 ```bash
 git clone https://github.com/IJMadalenA/moodsic.git
 cd moodsic
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+uv venv
+uv sync
 copy .env.example .env
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver
+uv run manage.py migrate
+uv run manage.py createsuperuser
+uv run manage.py runserver
 ```
 
 ### Orden de arranque recomendado
 
-1. crear y activar el entorno virtual;
-2. instalar dependencias;
+1. instalar uv si no está presente;
+2. sincronizar dependencias con `uv sync`;
 3. preparar el archivo .env;
-4. ejecutar migraciones;
-5. crear superusuario;
-6. arrancar el servidor;
+4. ejecutar migraciones con `uv run manage.py migrate`;
+5. crear superusuario con `uv run manage.py createsuperuser`;
+6. arrancar el servidor con `uv run manage.py runserver`;
 7. abrir el proyecto en navegador.
 
 ### URLs útiles
@@ -128,9 +127,9 @@ python manage.py runserver
 ### Flujo offline para pruebas o demo
 
 ```bash
-python manage.py seed_synthetic_context
-python manage.py seed_synthetic_interactions
-python manage.py evaluate_model --with-synthetic-context --auto-train
+uv run manage.py seed_synthetic_context
+uv run manage.py seed_synthetic_interactions
+uv run manage.py evaluate_model --with-synthetic-context --auto-train
 ```
 
 ---
@@ -227,7 +226,7 @@ moodsic/
 ├── README.md
 ├── DEVELOPMENT.md
 ├── MANAGEMENT_COMMANDS.md
-├── requirements.txt
+├── uv.lock
 ├── pyproject.toml
 ├── pytest.ini
 ├── Dockerfile

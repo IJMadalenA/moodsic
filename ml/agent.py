@@ -12,7 +12,6 @@ Arquitectura:
 
 import logging
 from collections import deque
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import tensorflow as tf
@@ -42,7 +41,7 @@ class DQNAgent:
         memory_size: int = 10000,
         batch_size: int = 64,
         hidden_dim: int = 128,
-        model_path: Optional[str] = None,
+        model_path: str | None = None,
     ):
         """
         Inicializa el Agente DQN.
@@ -119,7 +118,7 @@ class DQNAgent:
     def select_action(
         self,
         state: np.ndarray,
-        available_actions: Optional[List[int]] = None,
+        available_actions: list[int] | None = None,
         training: bool = True,
     ) -> int:
         """
@@ -175,7 +174,7 @@ class DQNAgent:
         """
         self.memory.append((state, action, reward, next_state, done))
 
-    def replay(self) -> Optional[float]:
+    def replay(self) -> float | None:
         """
         Entrena la red con un mini-batch del replay buffer.
         
@@ -247,7 +246,7 @@ class DQNAgent:
         if self.steps % update_frequency == 0:
             self._update_target_network()
 
-    def save_model(self, filepath: Optional[str] = None) -> None:
+    def save_model(self, filepath: str | None = None) -> None:
         """
         Guarda el modelo a disco.
         
@@ -258,7 +257,7 @@ class DQNAgent:
         self.q_network.save(filepath)
         logger.info(f"Modelo guardado en: {filepath}")
 
-    def load_model(self, filepath: Optional[str] = None) -> None:
+    def load_model(self, filepath: str | None = None) -> None:
         """
         Carga un modelo previamente entrenado.
         
@@ -289,9 +288,9 @@ class DQNAgent:
     def get_best_action(
         self,
         state: np.ndarray,
-        available_actions: Optional[List[int]] = None,
+        available_actions: list[int] | None = None,
         top_k: int = 1,
-    ) -> List[Tuple[int, float]]:
+    ) -> list[tuple[int, float]]:
         """
         Obtiene las mejores acciones ordenadas por Q-value.
         
@@ -372,7 +371,7 @@ class TrainingLoop:
         self.episode_rewards = []
         self.episode_losses = []
 
-    def train(self) -> Dict[str, List[float]]:
+    def train(self) -> dict[str, list[float]]:
         """
         Ejecuta el loop de entrenamiento (sobre episodios).
         

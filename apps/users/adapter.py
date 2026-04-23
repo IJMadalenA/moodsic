@@ -1,24 +1,27 @@
 import logging
+
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
-from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
 
 class MoodsicSocialAccountAdapter(DefaultSocialAccountAdapter):
     def save_user(self, request, sociallogin, form=None):
         try:
             print("--- DEBUG ADAPTER: Inicio del proceso de guardado ---")
-            
+
             # 1. Ejecutamos el guardado estándar
             user = super().save_user(request, sociallogin, form)
-            
+
             # SEGURIDAD: Si por alguna razón el user no tiene ID (no se guardó), lo forzamos
             if not user.pk:
                 user.save()
-                print("--- DEBUG ADAPTER: Usuario forzado a base de datos para obtener ID ---")
+                print(
+                    "--- DEBUG ADAPTER: Usuario forzado a base de datos para obtener ID ---"
+                )
 
             social_account = sociallogin.account
-            token_data = sociallogin.token 
+            token_data = sociallogin.token
 
             # --- LOGS DE TOKENS (Lo que pediste ver) ---
             if token_data:
@@ -33,28 +36,36 @@ class MoodsicSocialAccountAdapter(DefaultSocialAccountAdapter):
             user.is_spotify_connected = True
             user.access_token = token_data.token if token_data else ""
             user.refresh_token = token_data.token_secret if token_data else ""
-            
+
+            # Extraemos spotify_id y avatar_url
+            user.spotify_id = social_account.uid
+            user.avatar_url = social_account.get_avatar_url() or ""
+
             if token_data and token_data.expires_at:
                 user.token_expires_at = token_data.expires_at
-            
+
             user.save()
             print(f"--- DEBUG: Modelo User actualizado para {user.username} ---")
 
             # 3. VINCULACIÓN CON TABLAS SOCIALES (ADMIN)
             # Esto es lo que rellena "Social Accounts"
             social_account.user = user
-            social_account.save() 
-            print(f"--- DEBUG: SocialAccount vinculada con éxito (ID: {social_account.id}) ---")
-            
+            social_account.save()
+            print(
+                f"--- DEBUG: SocialAccount vinculada con éxito (ID: {social_account.id}) ---"
+            )
+
             # Esto es lo que rellena "Social Application Tokens"
             if token_data:
                 token_data.account = social_account
                 token_data.save()
-                print(f"--- DEBUG: SocialToken vinculado con éxito (ID: {token_data.id}) ---")
-            
+                print(
+                    f"--- DEBUG: SocialToken vinculado con éxito (ID: {token_data.id}) ---"
+                )
+
             return user
-            
+
         except Exception as e:
-            print(f"--- ❌ ERROR CRÍTICO EN ADAPTER: {str(e)} ---")
+            print(f"--- ❌ ERROR CRÍTICO EN ADAPTER: {e!s} ---")
             logger.error(f"Fallo en save_user: {e}", exc_info=True)
             raise

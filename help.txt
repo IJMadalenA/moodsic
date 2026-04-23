@@ -1,10 +1,10 @@
 ACTIVAR EL ENTORNO VIRTUAL
-    -   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-    -   .\venv\Scripts\activate
+    -   uv venv
+    -   (no es necesario activar si usas uv run)
 
 INTALAR TODO LO NECESARIO
-    - pip install -r requirements.txt
+    - uv sync
 
 LEVANTAR
-    - python manage.py runserver
+    - uv run manage.py runserver
 

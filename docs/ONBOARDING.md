@@ -92,29 +92,29 @@ Actualmente este modo es una parte importante del flujo de trabajo del equipo.
 ### Arranque básico
 
 ```bash
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver
+uv run manage.py migrate
+uv run manage.py createsuperuser
+uv run manage.py runserver
 ```
 
 ### Flujo offline mínimo
 
 ```bash
-python manage.py seed_synthetic_context
-python manage.py seed_synthetic_interactions
-python manage.py evaluate_model --with-synthetic-context --auto-train
+uv run manage.py seed_synthetic_context
+uv run manage.py seed_synthetic_interactions
+uv run manage.py evaluate_model --with-synthetic-context --auto-train
 ```
 
 ### Benchmark reproducible
 
 ```bash
-python manage.py benchmark_matrix --config ml/benchmark_matrix_config.example.json
+uv run manage.py benchmark_matrix --config ml/benchmark_matrix_config.example.json
 ```
 
 ### Documentación de ayuda interna
 
 ```bash
-python manage.py moodsic_help
+uv run manage.py moodsic_help
 ```
 
 ## 7. Dónde tocar código según el tipo de tarea

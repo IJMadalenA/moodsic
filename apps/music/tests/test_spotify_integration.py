@@ -4,13 +4,14 @@ Incluye tests para SpotifyMusicService, sync_spotify_tracks, y playlists.
 """
 
 from unittest.mock import MagicMock, patch
+
 import pytest
-from django.test import Client
-from django.contrib.auth import get_user_model
 from allauth.socialaccount.models import SocialAccount, SocialToken
+from django.contrib.auth import get_user_model
+from django.test import Client
 from django.utils import timezone
 
-from apps.music.models import Track, Album, Artist, Playlist
+from apps.music.models import Album, Artist, Playlist, Track
 from apps.music.services.spotify_music_service import SpotifyMusicService
 
 User = get_user_model()
@@ -47,7 +48,7 @@ class TestSpotifyMusicServiceExtended:
         """Test obteniendo tracks de una playlist."""
         mock_client = MagicMock()
         mock_spotify_class.return_value = mock_client
-        
+
         mock_client.playlist_tracks.return_value = {
             "items": [
                 {
@@ -78,7 +79,7 @@ class TestSpotifyMusicServiceExtended:
         """Test obteniendo liked songs del usuario."""
         mock_client = MagicMock()
         mock_spotify_class.return_value = mock_client
-        
+
         mock_client.current_user_saved_tracks.return_value = {
             "items": [
                 {
@@ -108,7 +109,7 @@ class TestSpotifyMusicServiceExtended:
         """Test obteniendo top tracks del usuario."""
         mock_client = MagicMock()
         mock_spotify_class.return_value = mock_client
-        
+
         mock_client.current_user_top_tracks.return_value = {
             "items": [
                 {
@@ -136,7 +137,7 @@ class TestSpotifyMusicServiceExtended:
         """Test creando una playlist en Spotify."""
         mock_client = MagicMock()
         mock_spotify_class.return_value = mock_client
-        
+
         mock_client.current_user.return_value = {"id": "user_123"}
         mock_client.user_playlist_create.return_value = {
             "id": "new_playlist_123",
@@ -164,17 +165,17 @@ class TestSpotifyMusicServiceExtended:
         """Test agregando tracks a una playlist."""
         mock_client = MagicMock()
         mock_spotify_class.return_value = mock_client
-        
+
         service = SpotifyMusicService(user_with_spotify)
         track_uris = [
             "spotify:track:1",
             "spotify:track:2",
             "spotify:track:3",
         ]
-        
+
         result = service.add_tracks_to_playlist("playlist_123", track_uris)
-        
-        assert result is True
+
+        assert result
         mock_client.playlist_add_items.assert_called_once()
 
     @patch("apps.music.services.spotify_music_service.spotipy.Spotify")
@@ -182,7 +183,7 @@ class TestSpotifyMusicServiceExtended:
         """Test obteniendo audio features."""
         mock_client = MagicMock()
         mock_spotify_class.return_value = mock_client
-        
+
         mock_client.audio_features.return_value = [
             {
                 "id": "track_1",
@@ -239,7 +240,7 @@ class TestPlaylistGenerationWithSpotify:
         """Crea algunos tracks para testing."""
         artist = Artist.objects.create(name="Test Artist", spotify_id="artist_1")
         album = Album.objects.create(name="Test Album", spotify_id="album_1")
-        
+
         tracks = []
         for i in range(5):
             track = Track.objects.create(
@@ -253,16 +254,16 @@ class TestPlaylistGenerationWithSpotify:
             )
             track.artists.add(artist)
             tracks.append(track)
-        
+
         return tracks
 
     @patch("apps.interactions.services.playlist_generation_service.SpotifyMusicService")
     def test_playlist_sync_to_spotify(self, mock_spotify_service_class, user_with_spotify, sample_tracks):
         """Test sincronizando playlist con Spotify."""
         from apps.interactions.services.playlist_generation_service import (
-            PlaylistGenerationService
+            PlaylistGenerationService,
         )
-        
+
         # Mock del servicio de Spotify
         mock_service = MagicMock()
         mock_spotify_service_class.return_value = mock_service
@@ -327,14 +328,14 @@ class TestPlaylistAPIEndpoints:
         """Crea una playlist de muestra."""
         artist = Artist.objects.create(name="API Artist", spotify_id="artist_api")
         album = Album.objects.create(name="API Album", spotify_id="album_api")
-        
+
         playlist = Playlist.objects.create(
             user=user_with_spotify,
             name="API Test Playlist",
             spotify_id="playlist_api_123",
             is_public=False,
         )
-        
+
         for i in range(3):
             track = Track.objects.create(
                 spotify_id=f"api_track_{i}",
@@ -346,14 +347,14 @@ class TestPlaylistAPIEndpoints:
             )
             track.artists.add(artist)
             playlist.tracks.add(track)
-        
+
         return playlist
 
     def test_list_user_playlists(self, client, user_with_spotify, sample_playlist):
         """Test listando playlists del usuario."""
         client.force_login(user_with_spotify)
         response = client.get("/api/interactions/playlists/")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "playlists" in data
@@ -364,14 +365,14 @@ class TestPlaylistAPIEndpoints:
         """Test obteniendo detalles de una playlist."""
         client.force_login(user_with_spotify)
         response = client.get(f"/api/interactions/playlists/{sample_playlist.spotify_id}/")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["playlist_name"] == "API Test Playlist"
         assert data["tracks_count"] == 3
 
     @patch("apps.interactions.views.playlist_api.SpotifyMusicService")
-    def test_sync_playlist_to_spotify_endpoint(self, mock_spotify_service, client, 
+    def test_sync_playlist_to_spotify_endpoint(self, mock_spotify_service, client,
                                                user_with_spotify, sample_playlist):
         """Test sincronizando playlist por API."""
         mock_service = MagicMock()

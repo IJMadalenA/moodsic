@@ -1,7 +1,6 @@
+import pytest
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-
-import pytest
 
 from apps.context.models import NewsContext, WeatherContext
 from pipelines.state_pipeline import build_latest_state_for_user

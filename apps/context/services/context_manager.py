@@ -1,8 +1,11 @@
-from django.utils import timezone
 from datetime import timedelta
-from .weather_service import WeatherService
+
+from django.utils import timezone
+
+from ..models import NewsContext, WeatherContext
 from .news_service import NewsService
-from ..models import WeatherContext, NewsContext
+from .weather_service import WeatherService
+
 
 class ContextManager:
     """Orquesta la actualización automática de clima y noticias."""

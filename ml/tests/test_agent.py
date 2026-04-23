@@ -2,8 +2,9 @@
 Tests para el Agente DQN.
 """
 
-import pytest
 import numpy as np
+import pytest
+
 from ml.agent import DQNAgent, get_agent
 
 

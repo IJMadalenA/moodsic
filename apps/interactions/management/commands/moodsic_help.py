@@ -1,11 +1,11 @@
 """
-Comando: python manage.py moodsic_help
+Comando: uv run manage.py moodsic_help
 
 Muestra información de ayuda sobre los comandos de Moodsic.
 
 Ejemplos:
-    python manage.py moodsic_help
-    python manage.py moodsic_help --command train_agent
+    uv run manage.py moodsic_help
+    uv run manage.py moodsic_help --command train_agent
 """
 
 from django.core.management.base import BaseCommand
@@ -34,7 +34,7 @@ class Command(BaseCommand):
 COMANDOS DISPONIBLES:
 
 1️⃣  TRAIN_AGENT - Entrena el modelo DQN
-   └─ python manage.py train_agent [OPTIONS]
+   └─ uv run manage.py train_agent [OPTIONS]
 
    Opciones:
       --episodes NUM       Número de episodios (default: 50)
@@ -45,12 +45,12 @@ COMANDOS DISPONIBLES:
       --verbose           Logs detallados
 
    Ejemplos:
-      $ python manage.py train_agent --episodes 100 --save
-      $ python manage.py train_agent --episodes 50 --days 30 --batch-size 64 --save --visualize
+      $ uv run manage.py train_agent --episodes 100 --save
+      $ uv run manage.py train_agent --episodes 50 --days 30 --batch-size 64 --save --visualize
 
 
 2️⃣  EVALUATE_MODEL - Evalúa un modelo entrenado
-   └─ python manage.py evaluate_model [OPTIONS]
+   └─ uv run manage.py evaluate_model [OPTIONS]
 
    Opciones:
       --model-path PATH           Ruta del modelo (REQUERIDO)
@@ -59,12 +59,12 @@ COMANDOS DISPONIBLES:
       --verbose                  Logs detallados
 
    Ejemplos:
-      $ python manage.py evaluate_model --model-path ml/models/dqn_agent.h5
-      $ python manage.py evaluate_model --model-path ml/models/dqn_agent.h5 --show-recommendations
+      $ uv run manage.py evaluate_model --model-path ml/models/dqn_agent.h5
+      $ uv run manage.py evaluate_model --model-path ml/models/dqn_agent.h5 --show-recommendations
 
 
 3️⃣  COLLECT_INTERACTIONS - Recopila y procesa interacciones
-   └─ python manage.py collect_interactions [OPTIONS]
+   └─ uv run manage.py collect_interactions [OPTIONS]
 
    Opciones:
       --days NUM              Días de interacciones (default: 7)
@@ -74,13 +74,13 @@ COMANDOS DISPONIBLES:
       --verbose              Logs detallados
 
    Ejemplos:
-      $ python manage.py collect_interactions --days 7
-      $ python manage.py collect_interactions --user-id 1 --generate-report
-      $ python manage.py collect_interactions --days 30 --save-session
+      $ uv run manage.py collect_interactions --days 7
+      $ uv run manage.py collect_interactions --user-id 1 --generate-report
+      $ uv run manage.py collect_interactions --days 30 --save-session
 
 
 4️⃣  SYNC_SPOTIFY_TRACKS - Sincroniza tracks desde Spotify
-   └─ python manage.py sync_spotify_tracks [OPTIONS]
+   └─ uv run manage.py sync_spotify_tracks [OPTIONS]
 
    Opciones:
       --user-id ID          ID del usuario a sincronizar (opcional)
@@ -90,24 +90,24 @@ COMANDOS DISPONIBLES:
       --verbose             Logs detallados
 
    Ejemplos:
-      $ python manage.py sync_spotify_tracks
-      $ python manage.py sync_spotify_tracks --user-id 1 --limit 100
-      $ python manage.py sync_spotify_tracks --playlist-id spotify:playlist:123abc
+      $ uv run manage.py sync_spotify_tracks
+      $ uv run manage.py sync_spotify_tracks --user-id 1 --limit 100
+      $ uv run manage.py sync_spotify_tracks --playlist-id spotify:playlist:123abc
 
 
 📚 WORKFLOW RECOMENDADO:
 
    1. Entrena el agente:
-      $ python manage.py train_agent --episodes 100 --days 30 --save
+      $ uv run manage.py train_agent --episodes 100 --days 30 --save
 
    2. Recopila interacciones:
-      $ python manage.py collect_interactions --days 7 --save-session
+      $ uv run manage.py collect_interactions --days 7 --save-session
 
    3. Evalúa el modelo:
-      $ python manage.py evaluate_model --model-path ml/models/dqn_agent.h5
+      $ uv run manage.py evaluate_model --model-path ml/models/dqn_agent.h5
 
    4. Sincroniza tracks:
-      $ python manage.py sync_spotify_tracks --limit 100
+      $ uv run manage.py sync_spotify_tracks --limit 100
 
 
 💡 TIPS:
@@ -130,7 +130,7 @@ COMANDOS DISPONIBLES:
 ❓ PARA MÁS INFORMACIÓN:
 
    • Documentación: Ver DEVELOPMENT.md
-   • Tests: python -m pytest ml/tests/ -v
+   • Tests: uv run pytest ml/tests/ -v
    • Admin: http://localhost:8000/admin
 
 ╔════════════════════════════════════════════════════════════════════════════╗
@@ -141,7 +141,7 @@ COMANDOS DISPONIBLES:
         if command:
             # Mostrar ayuda de comando específico
             self.stdout.write(f"\n📖 Ayuda para: {command}\n")
-            self.stdout.write(f"Ejecuta: python manage.py {command} --help\n")
+            self.stdout.write(f"Ejecuta: uv run manage.py {command} --help\n")
         else:
             # Mostrar ayuda general
             self.stdout.write(help_text)

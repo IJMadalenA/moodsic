@@ -50,9 +50,8 @@ El proyecto está preparado para funcionar en dos modos:
 ### 1. Entorno
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+uv venv
+uv sync
 ```
 
 ### 2. Configuración
@@ -66,9 +65,9 @@ Rellena lo necesario en el archivo .env. Para desarrollo local sin APIs reales, 
 ### 3. Base de datos y servidor
 
 ```bash
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver
+uv run manage.py migrate
+uv run manage.py createsuperuser
+uv run manage.py runserver
 ```
 
 ### 4. Puntos de entrada útiles
@@ -82,11 +81,11 @@ python manage.py runserver
 ## Flujo recomendado para desarrollo offline
 
 ```bash
-python manage.py seed_synthetic_context
-python manage.py seed_synthetic_interactions
-python manage.py train_agent --with-synthetic-context --episodes 5
-python manage.py evaluate_model --with-synthetic-context --auto-train
-python manage.py benchmark_matrix --config ml/benchmark_matrix_config.example.json
+uv run manage.py seed_synthetic_context
+uv run manage.py seed_synthetic_interactions
+uv run manage.py train_agent --with-synthetic-context --episodes 5
+uv run manage.py evaluate_model --with-synthetic-context --auto-train
+uv run manage.py benchmark_matrix --config ml/benchmark_matrix_config.example.json
 ```
 
 ## Qué leer primero si eres nuevo en el proyecto

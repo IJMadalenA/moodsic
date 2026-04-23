@@ -18,19 +18,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
-from apps.users.views.spotify_callback import spotify_callback_redirect
-from apps.users.views.spotify_auth import (
-    spotify_auth_callback,
-    spotify_auth_login,
-)
-
 urlpatterns = [
     path("", include("apps.dashboard.urls", namespace="dashboard")),
     path("admin/", admin.site.urls),
-    path("accounts/spotify/login/", spotify_auth_login, name="spotify_login"),
-    path("accounts/spotify/login/callback/", spotify_auth_callback, name="spotify_callback"),
     path("accounts/", include("apps.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
-    path("callback", spotify_callback_redirect, name="spotify_callback_redirect"),
     path("api/interactions/", include("apps.interactions.urls")),
 ]

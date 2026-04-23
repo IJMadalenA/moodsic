@@ -4,7 +4,9 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 
-from apps.interactions.services.playlist_generation_service import PlaylistGenerationService
+from apps.interactions.services.playlist_generation_service import (
+    PlaylistGenerationService,
+)
 from apps.music.models import Album, Artist, Track, TrackAudioFeatures
 
 User = get_user_model()

@@ -14,17 +14,17 @@ import argparse
 import json
 import logging
 import os
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
-import django
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.preprocessing import StandardScaler
 
 # Asegurar que el directorio raíz está en el path
 import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import django
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+
 project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
@@ -36,12 +36,12 @@ django.setup()
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from ml.agent import DQNAgent, TrainingLoop, get_agent
-from ml.reward import get_reward_calculator
-from ml.state_builder import get_state_builder
+from apps.context.models import NewsContext, WeatherContext
 from apps.interactions.models import Interaction, InteractionSession
 from apps.music.models import Track
-from apps.context.models import NewsContext, WeatherContext
+from ml.agent import DQNAgent, get_agent
+from ml.reward import get_reward_calculator
+from ml.state_builder import get_state_builder
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -67,8 +67,8 @@ class TrainingDataLoader:
 
     @staticmethod
     def load_interactions(
-        days: int = 30, limit: Optional[int] = None
-    ) -> List[Interaction]:
+        days: int = 30, limit: int | None = None
+    ) -> list[Interaction]:
         """
         Carga interacciones recientes del BD.
         
@@ -94,8 +94,8 @@ class TrainingDataLoader:
 
     @staticmethod
     def load_user_sessions(
-        user: User, limit: Optional[int] = None
-    ) -> List[InteractionSession]:
+        user: User, limit: int | None = None
+    ) -> list[InteractionSession]:
         """
         Carga sesiones de un usuario.
         """
@@ -109,7 +109,7 @@ class TrainingDataLoader:
         return list(sessions)
 
     @staticmethod
-    def get_top_users(min_interactions: int = 10) -> List[User]:
+    def get_top_users(min_interactions: int = 10) -> list[User]:
         """
         Obtiene usuarios con más interacciones.
         """
@@ -136,8 +136,8 @@ class TrainingDataBuilder:
         self.scaler = StandardScaler()
 
     def build_training_batch(
-        self, interactions: List[Interaction]
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        self, interactions: list[Interaction]
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Construye un batch de entrenamiento a partir de interacciones.
         
@@ -199,7 +199,7 @@ class TrainingDataBuilder:
         return np.array(states), np.array(rewards)
 
     @staticmethod
-    def _get_track_audio_features(track: Track) -> Dict:
+    def _get_track_audio_features(track: Track) -> dict:
         """Obtiene características de audio de un track."""
         try:
             if hasattr(track, "audio_features"):
@@ -257,7 +257,7 @@ class ModelTrainer:
 
     def __init__(
         self,
-        agent: Optional[DQNAgent] = None,
+        agent: DQNAgent | None = None,
         state_dim: int = 45,
         action_dim: int = 100,
         episodes: int = 100,
@@ -418,12 +418,12 @@ class ModelTrainer:
         logger.info(f"Logs de entrenamiento guardados en: {log_path}")
 
     @staticmethod
-    def _find_latest_log_file() -> Optional[Path]:
+    def _find_latest_log_file() -> Path | None:
         log_files = sorted(LOGS_DIR.glob("training_*.json"), reverse=True)
         return log_files[0] if log_files else None
 
     @staticmethod
-    def visualize_logs(log_path: Optional[Path] = None) -> None:
+    def visualize_logs(log_path: Path | None = None) -> None:
         """Visualiza logs de entrenamiento previamente guardados."""
         if log_path is None:
             log_path = ModelTrainer._find_latest_log_file()
@@ -432,7 +432,7 @@ class ModelTrainer:
             logger.warning("No se encontró ningún log de entrenamiento para visualizar")
             return
 
-        with open(log_path, "r") as f:
+        with open(log_path) as f:
             training_logs = json.load(f)
 
         episode_losses = training_logs.get("episode_losses", [])
@@ -520,7 +520,7 @@ class ModelEvaluator:
         self.agent.load_model(model_path)
         self.state_builder = get_state_builder()
 
-    def evaluate_on_test_set(self, test_interactions: List[Interaction]) -> Dict:
+    def evaluate_on_test_set(self, test_interactions: list[Interaction]) -> dict:
         """
         Evalúa el modelo en un conjunto de test.
         
@@ -571,7 +571,7 @@ class ModelEvaluator:
         return metrics
 
     @staticmethod
-    def _get_track_audio_features(track: Track) -> Dict:
+    def _get_track_audio_features(track: Track) -> dict:
         """Obtiene características de audio."""
         try:
             if hasattr(track, "audio_features"):
@@ -596,7 +596,7 @@ class ModelEvaluator:
 
     def recommend_tracks(
         self, user: User, count: int = 10
-    ) -> List[Tuple[Track, float]]:
+    ) -> list[tuple[Track, float]]:
         """
         Recomienda tracks usando el modelo.
         

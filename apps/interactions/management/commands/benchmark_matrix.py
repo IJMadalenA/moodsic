@@ -144,6 +144,16 @@ class Command(BaseCommand):
                     synthetic_news=options["synthetic_news"],
                 )
 
+        # Check if there are any benchmark files to process
+        benchmark_files = list(run_dir.glob("evaluation_benchmark_*.json"))
+        if not benchmark_files:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"\n[MATRIX] No benchmark files found in {run_dir}. Skipping summary generation."
+                )
+            )
+            return
+
         generated_files: list[Path] = []
         alpha_winners: list[dict[str, Any]] = []
 
@@ -353,7 +363,7 @@ class Command(BaseCommand):
         if not config_path.exists():
             raise CommandError(f"Config file does not exist: {config_path}")
 
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             try:
                 config_data = json.load(f)
             except json.JSONDecodeError as exc:
@@ -441,7 +451,7 @@ class Command(BaseCommand):
     def _load_weight_summary_row(
         self, csv_path: Path, w_acc: float, w_reward: float, robustness_alpha: float
     ) -> dict[str, Any]:
-        with open(csv_path, "r", encoding="utf-8", newline="") as csv_file:
+        with open(csv_path, encoding="utf-8", newline="") as csv_file:
             reader = csv.DictReader(csv_file)
             runs = list(reader)
 

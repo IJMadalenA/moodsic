@@ -1,13 +1,13 @@
 """
-Comando: python manage.py collect_interactions
+Comando: uv run manage.py collect_interactions
 
 Recopila y procesa interacciones del usuario, calculando métricas agregadas.
 
 Ejemplos:
-    python manage.py collect_interactions
-    python manage.py collect_interactions --days 7
-    python manage.py collect_interactions --days 30 --user-id 1
-    python manage.py collect_interactions --generate-report
+    uv run manage.py collect_interactions
+    uv run manage.py collect_interactions --days 7
+    uv run manage.py collect_interactions --days 30 --user-id 1
+    uv run manage.py collect_interactions --generate-report
 """
 
 import logging
@@ -66,7 +66,7 @@ class Command(BaseCommand):
         log_level = logging.DEBUG if verbose else logging.INFO
         logging.basicConfig(level=log_level)
 
-        self.stdout.write(self.style.SUCCESS(f"\n📊 Recopilando interacciones"))
+        self.stdout.write(self.style.SUCCESS("\n📊 Recopilando interacciones"))
         self.stdout.write(f"   📅 Últimos {days} días")
 
         try:
@@ -111,7 +111,7 @@ class Command(BaseCommand):
             )
 
             # 4. Mostrar top tracks
-            self.stdout.write(f"\n🎵 Top 5 Tracks más reproducidos:")
+            self.stdout.write("\n🎵 Top 5 Tracks más reproducidos:")
             for i, (track_id, count) in enumerate(stats["top_tracks"][:5], 1):
                 self.stdout.write(f"   {i}. Track ID: {track_id} ({count} veces)")
 
@@ -137,7 +137,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"\n❌ Usuario no encontrado: {user_id}\n"))
             raise CommandError(f"Usuario {user_id} no existe")
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"\n❌ Error al recopilar:\n{str(e)}\n"))
+            self.stdout.write(self.style.ERROR(f"\n❌ Error al recopilar:\n{e!s}\n"))
             raise CommandError(str(e))
 
     def _calculate_stats(self, interactions):
