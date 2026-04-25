@@ -47,3 +47,18 @@ repos:
         name: ruff-format.............................(code formatter)
         args: [ --config=pyproject.toml ]
         exclude: ".*/migrations/.*"
+
+  - repo: local
+    hooks:
+      - id: django-check
+        name: django-check
+        entry: uv run manage.py check
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
+        always_run: true
