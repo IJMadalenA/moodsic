@@ -78,11 +78,15 @@ class NewsService:
         headers = {"X-Api-Key": api_key}
 
         try:
-            response = requests.get(base_url, params=params, headers=headers, timeout=12)
+            response = requests.get(
+                base_url, params=params, headers=headers, timeout=12
+            )
             response.raise_for_status()
             payload = response.json()
         except requests.RequestException as exc:
-            logger.warning(f"News provider unavailable, using cached news fallback: {exc}")
+            logger.warning(
+                f"News provider unavailable, using cached news fallback: {exc}"
+            )
             cached_items = cls._get_cached_news(category=category, limit=page_size)
             if return_meta:
                 return cached_items, {

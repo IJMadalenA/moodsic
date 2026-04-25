@@ -17,13 +17,22 @@ import os
 
 # Asegurar que el directorio raíz está en el path
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 import django
 import matplotlib.pyplot as plt
 import numpy as np
+from django.contrib.auth import get_user_model
+from django.utils import timezone
 from sklearn.preprocessing import StandardScaler
+
+from apps.context.models import NewsContext, WeatherContext
+from apps.interactions.models import Interaction, InteractionSession
+from apps.music.models import Track
+from ml.agent import DQNAgent, get_agent
+from ml.reward import get_reward_calculator
+from ml.state_builder import get_state_builder
 
 project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
@@ -32,16 +41,6 @@ if str(project_root) not in sys.path:
 # Configurar Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
-
-from django.contrib.auth import get_user_model
-from django.utils import timezone
-
-from apps.context.models import NewsContext, WeatherContext
-from apps.interactions.models import Interaction, InteractionSession
-from apps.music.models import Track
-from ml.agent import DQNAgent, get_agent
-from ml.reward import get_reward_calculator
-from ml.state_builder import get_state_builder
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -71,11 +70,11 @@ class TrainingDataLoader:
     ) -> list[Interaction]:
         """
         Carga interacciones recientes del BD.
-        
+
         Args:
             days: Número de días hacia atrás
             limit: Máximo de interacciones a cargar
-            
+
         Returns:
             Lista de objetos Interaction
         """
@@ -99,9 +98,7 @@ class TrainingDataLoader:
         """
         Carga sesiones de un usuario.
         """
-        sessions = InteractionSession.objects.filter(user=user).order_by(
-            "-started_at"
-        )
+        sessions = InteractionSession.objects.filter(user=user).order_by("-started_at")
 
         if limit:
             sessions = sessions[:limit]
@@ -140,10 +137,10 @@ class TrainingDataBuilder:
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Construye un batch de entrenamiento a partir de interacciones.
-        
+
         Args:
             interactions: Lista de interacciones
-            
+
         Returns:
             Tuple de (states, rewards)
         """
@@ -218,8 +215,8 @@ class TrainingDataBuilder:
                     "mode": af.mode,
                     "time_signature": af.time_signature,
                 }
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning(f"Error al obtener audio features de {track.name}: {exc}")
 
         return {
             "energy": 0.5,
@@ -282,7 +279,7 @@ class ModelTrainer:
     def train_from_interactions(self, days: int = 30):
         """
         Entrena el agente usando interacciones históricas.
-        
+
         Args:
             days: Número de días de datos a usar
         """
@@ -293,7 +290,9 @@ class ModelTrainer:
         interactions = loader.load_interactions(days=days, limit=5000)
 
         if len(interactions) < 100:
-            logger.warning(f"Pocas interacciones ({len(interactions)}), usando data sintética")
+            logger.warning(
+                f"Pocas interacciones ({len(interactions)}), usando data sintética"
+            )
             self._train_with_synthetic_data()
             return
 
@@ -396,26 +395,30 @@ class ModelTrainer:
                 )
 
         total_time = timezone.now() - start_time
-        logger.info(
-            f"Entrenamiento completado en {total_time.total_seconds():.1f}s"
-        )
+        logger.info(f"Entrenamiento completado en {total_time.total_seconds():.1f}s")
 
-    def save_model(self, model_name: str = "dqn_agent"):
+    def save_model(self, model_name: str = "dqn_agent") -> Path:
         """
         Guarda el modelo entrenado.
-        
+
         Args:
             model_name: Nombre del archivo (sin extensión)
         """
-        model_path = MODELS_DIR / f"{model_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.h5"
+        model_path = (
+            MODELS_DIR / f"{model_name}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.h5"
+        )
         self.agent.save_model(str(model_path))
         logger.info(f"Modelo guardado en: {model_path}")
 
         # Guardar logs de entrenamiento
-        log_path = LOGS_DIR / f"training_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        log_path = (
+            LOGS_DIR / f"training_{timezone.now().strftime('%Y%m%d_%H%M%S')}.json"
+        )
         with open(log_path, "w") as f:
             json.dump(self.training_logs, f, indent=2)
         logger.info(f"Logs de entrenamiento guardados en: {log_path}")
+
+        return model_path
 
     @staticmethod
     def _find_latest_log_file() -> Path | None:
@@ -465,7 +468,10 @@ class ModelTrainer:
             axes[0].plot(episode_rewards, label="Rewards", linestyle="--")
             axes[0].legend()
 
-        plot_path = LOGS_DIR / f"training_visualization_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        plot_path = (
+            LOGS_DIR
+            / f"training_visualization_{timezone.now().strftime('%Y%m%d_%H%M%S')}.png"
+        )
         plt.savefig(plot_path, dpi=100, bbox_inches="tight")
         logger.info(f"Gráfico de entrenamiento guardado en: {plot_path}")
         plt.show()
@@ -479,7 +485,7 @@ class ModelTrainer:
             logger.warning("No hay datos de pérdida para graficar")
             return
 
-        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+        _fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
         # Gráfico de pérdida
         axes[0].plot(self.training_logs["episode_losses"], label="Loss")
@@ -490,14 +496,18 @@ class ModelTrainer:
         axes[0].legend()
 
         # Gráfico de epsilon
-        axes[1].plot(self.training_logs["epsilon_values"], label="Epsilon", color="orange")
+        axes[1].plot(
+            self.training_logs["epsilon_values"], label="Epsilon", color="orange"
+        )
         axes[1].set_xlabel("Episodio")
         axes[1].set_ylabel("Epsilon")
         axes[1].set_title("Tasa de Exploración (Epsilon)")
         axes[1].grid(True)
         axes[1].legend()
 
-        plot_path = LOGS_DIR / f"training_plot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        plot_path = (
+            LOGS_DIR / f"training_plot_{timezone.now().strftime('%Y%m%d_%H%M%S')}.png"
+        )
         plt.savefig(plot_path, dpi=100, bbox_inches="tight")
         logger.info(f"Gráfico guardado en: {plot_path}")
 
@@ -512,7 +522,7 @@ class ModelEvaluator:
     def __init__(self, model_path: str):
         """
         Inicializa el evaluador.
-        
+
         Args:
             model_path: Ruta al modelo guardado
         """
@@ -523,10 +533,10 @@ class ModelEvaluator:
     def evaluate_on_test_set(self, test_interactions: list[Interaction]) -> dict:
         """
         Evalúa el modelo en un conjunto de test.
-        
+
         Args:
             test_interactions: Interacciones para testing
-            
+
         Returns:
             Dict con métricas de evaluación
         """
@@ -545,7 +555,7 @@ class ModelEvaluator:
                 )
 
                 # Obtener predicción del agente
-                action = self.agent.select_action(state, training=False)
+                self.agent.select_action(state, training=False)
 
                 # Comparar con feedback real
                 if (interaction.feedback == "completed" and interaction.reward > 0) or (
@@ -583,8 +593,8 @@ class ModelEvaluator:
                     "acousticness": af.acousticness,
                     "instrumentalness": af.instrumentalness,
                 }
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning(f"Error al obtener audio features de {track.name}: {exc}")
 
         return {
             "energy": 0.5,
@@ -599,11 +609,11 @@ class ModelEvaluator:
     ) -> list[tuple[Track, float]]:
         """
         Recomienda tracks usando el modelo.
-        
+
         Args:
             user: Usuario para el que recomendar
             count: Número de recomendaciones
-            
+
         Returns:
             Lista de (Track, score) ordenada
         """
@@ -613,7 +623,7 @@ class ModelEvaluator:
         state = self.state_builder.build_state(user)
 
         # Obtener Q-values para todos los tracks
-        q_values = self.agent.get_q_values(state)
+        self.agent.get_q_values(state)
 
         # Obtener mejores acciones
         best_actions = self.agent.get_best_action(state, top_k=count)
@@ -662,7 +672,7 @@ def main():
     )
 
     # Comando: visualize
-    viz_parser = subparsers.add_parser("visualize", help="Visualizar datos de entrenamiento")
+    subparsers.add_parser("visualize", help="Visualizar datos de entrenamiento")
 
     args = parser.parse_args()
 

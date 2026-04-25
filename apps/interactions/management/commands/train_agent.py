@@ -120,7 +120,9 @@ class Command(BaseCommand):
         logging.basicConfig(level=log_level)
 
         self.stdout.write(
-            self.style.SUCCESS(f"\n>>> Iniciando entrenamiento RL ({episodes} episodios)")
+            self.style.SUCCESS(
+                f"\n>>> Iniciando entrenamiento RL ({episodes} episodios)"
+            )
         )
         self.stdout.write(f"    [DATA] Últimos {days} días")
         self.stdout.write(f"    [CONFIG] Batch size: {batch_size}")
@@ -136,7 +138,9 @@ class Command(BaseCommand):
                     seed=options["seed"],
                     clear_existing=True,
                 )
-                self.stdout.write(self.style.SUCCESS("   [OK] Contexto sintético generado"))
+                self.stdout.write(
+                    self.style.SUCCESS("   [OK] Contexto sintético generado")
+                )
 
                 self.stdout.write("\n[SEED] Generando interacciones sintéticas...")
                 call_command(
@@ -146,7 +150,9 @@ class Command(BaseCommand):
                     interactions=options["synthetic_interactions"],
                     seed=options["seed"],
                 )
-                self.stdout.write(self.style.SUCCESS("   [OK] Interacciones sintéticas generadas"))
+                self.stdout.write(
+                    self.style.SUCCESS("   [OK] Interacciones sintéticas generadas")
+                )
 
             # 1. Inicializar componentes
             self.stdout.write("\n[INIT] Inicializando componentes RL...")
@@ -184,7 +190,9 @@ class Command(BaseCommand):
             if save_model:
                 self.stdout.write("\n[SAVE] Guardando modelo...")
                 model_path = trainer.save_model()
-                self.stdout.write(self.style.SUCCESS(f"   [OK] Modelo guardado: {model_path}"))
+                self.stdout.write(
+                    self.style.SUCCESS(f"   [OK] Modelo guardado: {model_path}")
+                )
 
             # 5. Visualizar si aplica
             if visualize:
@@ -194,13 +202,19 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS("   [OK] Gráficos generados"))
                 except Exception as e:
                     self.stdout.write(
-                        self.style.WARNING(f"   [WARNING] No se pudieron generar gráficos: {e}")
+                        self.style.WARNING(
+                            f"   [WARNING] No se pudieron generar gráficos: {e}"
+                        )
                     )
 
             self.stdout.write(
-                self.style.SUCCESS("\n[SUCCESS] Entrenamiento finalizado exitosamente!\n")
+                self.style.SUCCESS(
+                    "\n[SUCCESS] Entrenamiento finalizado exitosamente!\n"
+                )
             )
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"\n❌ Error durante el entrenamiento:\n{e!s}\n"))
-            raise CommandError(str(e))
+            self.stdout.write(
+                self.style.ERROR(f"\n❌ Error durante el entrenamiento:\n{e!s}\n")
+            )
+            raise CommandError(str(e)) from e

@@ -3,12 +3,15 @@ from typing import ClassVar, TypedDict
 
 logger = logging.getLogger(__name__)
 
+
 class MusicParameters(TypedDict, total=False):
     """Estructura de parámetros para la API de recomendaciones de Spotify."""
+
     target_energy: float
     target_valence: float
     target_danceability: float
     seed_genres: list[str]
+
 
 class MoodService:
     """
@@ -84,9 +87,11 @@ class MoodService:
     }
 
     @classmethod
-    def get_combined_params(cls, main_status: str, avg_sentiment: float = 0.0) -> MusicParameters:
+    def get_combined_params(
+        cls, main_status: str, avg_sentiment: float = 0.0
+    ) -> MusicParameters:
         """
-        Calcula los parámetros finales ajustando la base del clima con el 
+        Calcula los parámetros finales ajustando la base del clima con el
         sentimiento de las noticias (rango de -1.0 a 1.0).
         """
         # 1. Obtener la configuración base según el clima
@@ -113,11 +118,13 @@ class MoodService:
         return params
 
     @classmethod
-    def get_mood_label(cls, main_status: str, avg_sentiment: float = 0.0) -> str:
+    def get_mood_name(cls, main_status: str, avg_sentiment: float = 0.0) -> str:
         """
         Genera una etiqueta de texto descriptiva del estado de ánimo combinado.
         """
-        base_mood = cls.MOOD_MAPPING.get(main_status, cls.MOOD_MAPPING["Clouds"])["mood"]
+        base_mood = cls.MOOD_MAPPING.get(main_status, cls.MOOD_MAPPING["Clouds"])[
+            "mood"
+        ]
 
         if avg_sentiment > 0.4:
             return f"Very Positive & {base_mood}"

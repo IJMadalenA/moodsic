@@ -8,12 +8,14 @@ from django.core.management import call_command
 class TestManagementCommands:
     def test_train_agent_command(self):
         from apps.interactions.management.commands.train_agent import Command
+
         with patch.object(Command, "handle", return_value="OK") as mock_handle:
             call_command("train_agent", episodes=1)
             assert mock_handle.called
 
     def test_evaluate_model_command(self):
         from apps.interactions.management.commands.evaluate_model import Command
+
         with patch.object(Command, "handle", return_value="OK") as mock_handle:
             call_command("evaluate_model", auto_train=True)
             assert mock_handle.called
@@ -21,6 +23,7 @@ class TestManagementCommands:
     def test_seed_synthetic_interactions_command(self):
         # Crear datos previos necesarios
         from apps.users.models.user import User
+
         User.objects.get_or_create(username="seed_user", email="seed@test.com")
 
         call_command("seed_synthetic_interactions", interactions=1)
@@ -30,17 +33,22 @@ class TestManagementCommands:
         from apps.interactions.management.commands.collect_interactions import (
             Command as CollectCommand,
         )
+
         with patch.object(CollectCommand, "handle", return_value="Done") as mock_handle:
             call_command("collect_interactions")
             assert mock_handle.called
 
     def test_sync_spotify_tracks_command(self):
         from apps.users.models.user import User
-        user, _ = User.objects.get_or_create(username="sync_user", email="sync@test.com")
+
+        user, _ = User.objects.get_or_create(
+            username="sync_user", email="sync@test.com"
+        )
 
         from apps.interactions.management.commands.sync_spotify_tracks import (
             Command as SyncCommand,
         )
+
         with patch.object(SyncCommand, "handle", return_value="Done") as mock_handle:
             call_command("sync_spotify_tracks", user_id=user.id)
             assert mock_handle.called
@@ -52,6 +60,7 @@ class TestManagementCommands:
         from apps.context.management.commands.fetch_news_context import (
             Command as NewsCommand,
         )
+
         with patch.object(NewsCommand, "handle", return_value="Done") as mock_handle:
             call_command("fetch_news_context", page_size=1)
             assert mock_handle.called
@@ -65,12 +74,14 @@ class TestManagementCommands:
         from apps.music.management.commands.verify_spotify import (
             Command as VerifyCommand,
         )
+
         with patch.object(VerifyCommand, "handle", return_value="Done") as mock_handle:
             call_command("verify_spotify")
             assert mock_handle.called
 
     def test_benchmark_matrix_command(self):
         from apps.interactions.management.commands.benchmark_matrix import Command
+
         with patch.object(Command, "handle", return_value="Done") as mock_handle:
             call_command("benchmark_matrix", config="ml/test_benchmark_config.json")
             assert mock_handle.called
@@ -80,6 +91,7 @@ class TestManagementCommands:
         import json
         import tempfile
         from pathlib import Path
+
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir_path = Path(tmpdir)
 
@@ -98,13 +110,13 @@ class TestManagementCommands:
                         "seed": seed,
                         "benchmark_episodes": 1,
                         "test_limit": 10,
-                        "test_days": 1
+                        "test_days": 1,
                     },
                     "metrics": {
                         "accuracy": 0.8,
                         "mean_reward_dataset": 0.7,
-                        "total_samples": 10
-                    }
+                        "total_samples": 10,
+                    },
                 }
                 with open(run_dir / f"evaluation_benchmark_seed_{seed}.json", "w") as f:
                     json.dump(data, f)
@@ -117,7 +129,7 @@ class TestManagementCommands:
                 skip_runs=True,
                 robustness_alpha=0.5,
                 seeds="101,202",
-                weights="0.7:0.3,0.8:0.2"
+                weights="0.7:0.3,0.8:0.2",
             )
 
             assert (run_dir / "benchmark_weights_summary.md").exists()
@@ -128,6 +140,7 @@ class TestManagementCommands:
         import json
         import tempfile
         from pathlib import Path
+
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir_path = Path(tmpdir)
             # Crear un par de archivos benchmark ficticios para probar el cálculo de deltas y rankings
@@ -141,13 +154,13 @@ class TestManagementCommands:
                         "test_limit": 100,
                         "test_days": 7,
                         "auto_train": True,
-                        "with_synthetic_context": True
+                        "with_synthetic_context": True,
                     },
                     "metrics": {
                         "accuracy": acc,
                         "mean_reward_dataset": reward,
-                        "total_samples": 1000
-                    }
+                        "total_samples": 1000,
+                    },
                 }
                 with open(benchmark_file, "w") as f:
                     json.dump(data, f)
@@ -162,7 +175,7 @@ class TestManagementCommands:
                 csv_output=str(output_csv),
                 w_accuracy=0.7,
                 w_reward=0.3,
-                robustness_alpha=0.1
+                robustness_alpha=0.1,
             )
 
             assert output_md.exists()

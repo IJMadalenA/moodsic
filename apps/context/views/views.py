@@ -10,7 +10,8 @@ def dashboard(request):
     # Esto disparará la carga automática si los datos son viejos
     context_data = ContextManager.get_current_context(user_city)
 
-    return render(request, "dashboard.html", {
-        "weather": context_data["weather"],
-        "news": context_data["news"]
-    })
+    return render(
+        request,
+        "dashboard.html",
+        {"weather": context_data["weather"], "news": context_data["news"]},
+    )

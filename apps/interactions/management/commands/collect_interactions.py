@@ -11,7 +11,7 @@ Ejemplos:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
@@ -74,7 +74,9 @@ class Command(BaseCommand):
             self.stdout.write("\n🔍 Buscando interacciones...")
             cutoff_date = timezone.now() - timedelta(days=days)
 
-            query = Interaction.objects.filter(started_at__gte=cutoff_date).order_by("-started_at")
+            query = Interaction.objects.filter(started_at__gte=cutoff_date).order_by(
+                "-started_at"
+            )
 
             if user_id:
                 query = query.filter(user_id=user_id)
@@ -83,7 +85,9 @@ class Command(BaseCommand):
 
             interactions = list(query)
             self.stdout.write(
-                self.style.SUCCESS(f"   ✅ {len(interactions)} interacciones encontradas")
+                self.style.SUCCESS(
+                    f"   ✅ {len(interactions)} interacciones encontradas"
+                )
             )
 
             if not interactions:
@@ -133,12 +137,14 @@ class Command(BaseCommand):
                 self.style.SUCCESS("\n✅ Recopilación completada exitosamente!\n")
             )
 
-        except User.DoesNotExist:
-            self.stdout.write(self.style.ERROR(f"\n❌ Usuario no encontrado: {user_id}\n"))
-            raise CommandError(f"Usuario {user_id} no existe")
+        except User.DoesNotExist as e:
+            self.stdout.write(
+                self.style.ERROR(f"\n❌ Usuario no encontrado: {user_id}\n")
+            )
+            raise CommandError(f"Usuario {user_id} no existe") from e
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"\n❌ Error al recopilar:\n{e!s}\n"))
-            raise CommandError(str(e))
+            raise CommandError(str(e)) from e
 
     def _calculate_stats(self, interactions):
         """Calcula estadísticas de las interacciones."""
@@ -146,13 +152,15 @@ class Command(BaseCommand):
 
         total = len(interactions)
         completed = sum(1 for i in interactions if i.feedback == "completed")
-        skipped = sum(1 for i in interactions if i.feedback in ["skip", "skip_immediate"])
+        skipped = sum(
+            1 for i in interactions if i.feedback in ["skip", "skip_immediate"]
+        )
 
         rewards = [i.reward for i in interactions if i.reward]
         avg_reward = sum(rewards) / len(rewards) if rewards else 0
 
-        users = set(i.user_id for i in interactions)
-        tracks = set(i.track_id for i in interactions)
+        users = {i.user_id for i in interactions}
+        tracks = {i.track_id for i in interactions}
 
         track_counts = Counter(i.track_id for i in interactions)
 
@@ -186,16 +194,18 @@ class Command(BaseCommand):
 
     def _generate_report(self, interactions, stats):
         """Genera un reporte de interacciones."""
-        filename = f"interaction_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        filename = f"interaction_report_{timezone.now().strftime('%Y%m%d_%H%M%S')}.txt"
 
         with open(filename, "w") as f:
             f.write("=" * 60 + "\n")
             f.write("📊 REPORTE DE INTERACCIONES\n")
             f.write("=" * 60 + "\n\n")
 
-            f.write(f"Fecha de generación: {datetime.now()}\n")
+            f.write(f"Fecha de generación: {timezone.now()}\n")
             f.write(f"Total de interacciones: {stats['total']}\n")
-            f.write(f"Completadas: {stats['completed']} ({stats['completion_rate']:.1f}%)\n")
+            f.write(
+                f"Completadas: {stats['completed']} ({stats['completion_rate']:.1f}%)\n"
+            )
             f.write(f"Skipped: {stats['skipped']} ({stats['skip_rate']:.1f}%)\n")
             f.write(f"Reward promedio: {stats['avg_reward']:.4f}\n")
             f.write(f"Usuarios únicos: {stats['unique_users']}\n")

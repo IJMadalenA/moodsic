@@ -78,7 +78,9 @@ class Command(BaseCommand):
         log_level = logging.DEBUG if verbose else logging.INFO
         logging.basicConfig(level=log_level)
 
-        self.stdout.write(self.style.SUCCESS("\n[SYNC] Sincronizando tracks de Spotify"))
+        self.stdout.write(
+            self.style.SUCCESS("\n[SYNC] Sincronizando tracks de Spotify")
+        )
 
         try:
             # Determinar el usuario a usar
@@ -97,12 +99,10 @@ class Command(BaseCommand):
                         raise CommandError(
                             f"Usuario {user.username} no está conectado a Spotify"
                         )
-                except User.DoesNotExist:
-                    raise CommandError(f"Usuario {user_id} no existe")
+                except User.DoesNotExist as e:
+                    raise CommandError(f"Usuario {user_id} no existe") from e
             else:
-                raise CommandError(
-                    "Debes especificar --user-id, --playlist-id o ambos"
-                )
+                raise CommandError("Debes especificar --user-id, --playlist-id o ambos")
 
             # Inicializar servicio de Spotify
             spotify_service = SpotifyMusicService(user)
@@ -112,7 +112,9 @@ class Command(BaseCommand):
                 )
 
             # 1. Obtener tracks
-            self.stdout.write(self.style.SUCCESS("\n[FETCH] Buscando tracks en Spotify..."))
+            self.stdout.write(
+                self.style.SUCCESS("\n[FETCH] Buscando tracks en Spotify...")
+            )
             tracks = []
 
             if playlist_id:
@@ -128,11 +130,15 @@ class Command(BaseCommand):
                 tracks = spotify_service.get_top_tracks(limit=limit)
             else:
                 # Default: liked tracks
-                self.stdout.write(f"   Fuente: Liked Songs de {user.username} (default)")
+                self.stdout.write(
+                    f"   Fuente: Liked Songs de {user.username} (default)"
+                )
                 tracks = spotify_service.get_user_liked_tracks(limit=limit)
 
             if not tracks:
-                self.stdout.write(self.style.WARNING("   [WARN] No se encontraron tracks"))
+                self.stdout.write(
+                    self.style.WARNING("   [WARN] No se encontraron tracks")
+                )
                 return
 
             self.stdout.write(
@@ -140,7 +146,9 @@ class Command(BaseCommand):
             )
 
             # 2. Guardar tracks en BD
-            self.stdout.write(self.style.SUCCESS("\n[SAVE] Guardando tracks en base de datos..."))
+            self.stdout.write(
+                self.style.SUCCESS("\n[SAVE] Guardando tracks en base de datos...")
+            )
 
             saved_count = 0
             skipped_count = 0
@@ -149,11 +157,19 @@ class Command(BaseCommand):
             for idx, track_data in enumerate(tracks, 1):
                 try:
                     # Obtener o crear album
-                    if track_data.get("album_id"):
+                    album_data = track_data.get("album")
+                    if isinstance(album_data, dict):
+                        album_id = album_data.get("id")
+                        album_name = album_data.get("name", "Unknown")
+                    else:
+                        album_id = track_data.get("album_id")
+                        album_name = track_data.get("album", "Unknown")
+
+                    if album_id:
                         album, _ = Album.objects.get_or_create(
-                            spotify_id=track_data.get("album_id"),
+                            spotify_id=album_id,
                             defaults={
-                                "name": track_data.get("album", "Unknown"),
+                                "name": album_name,
                                 "album_type": "",
                             },
                         )
@@ -162,12 +178,22 @@ class Command(BaseCommand):
 
                     # Obtener o crear artistas
                     artists = []
-                    for artist_name in track_data.get("artists", []):
+                    raw_artists = track_data.get("artists", [])
+                    for artist_raw in raw_artists:
+                        if isinstance(artist_raw, dict):
+                            artist_name = artist_raw.get("name", "Unknown")
+                            artist_id = artist_raw.get(
+                                "id", f"local_{artist_name.lower()}"
+                            )
+                        else:
+                            artist_name = artist_raw
+                            artist_id = f"local_{artist_name.lower()}"
+
                         artist_key = artist_name.lower()
                         if artist_key not in artist_cache:
                             artist, _ = Artist.objects.get_or_create(
                                 name=artist_name,
-                                defaults={"spotify_id": f"local_{artist_key}"},
+                                defaults={"spotify_id": artist_id},
                             )
                             artist_cache[artist_key] = artist
                         artists.append(artist_cache[artist_key])
@@ -204,7 +230,9 @@ class Command(BaseCommand):
                         )
 
                 except Exception as e:
-                    logger.error(f"Error procesando track {track_data.get('name', 'Unknown')}: {e}")
+                    logger.error(
+                        f"Error procesando track {track_data.get('name', 'Unknown')}: {e}"
+                    )
                     if verbose:
                         self.stdout.write(
                             self.style.WARNING(f"   [ERROR] {str(e)[:50]}...")
@@ -220,7 +248,11 @@ class Command(BaseCommand):
 
             # 3. Obtener características de audio si se solicita
             if save_audio_features and saved_count > 0:
-                self.stdout.write(self.style.SUCCESS("\n[AUDIO] Obteniendo características de audio..."))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        "\n[AUDIO] Obteniendo características de audio..."
+                    )
+                )
 
                 track_ids = [t.get("id") for t in tracks if t.get("id")]
                 if track_ids:
@@ -231,17 +263,20 @@ class Command(BaseCommand):
                         try:
                             track = Track.objects.get(spotify_id=track_id)
                             TrackAudioFeatures.objects.get_or_create(
-                                track=track,
-                                defaults=features
+                                track=track, defaults=features
                             )
                             features_saved += 1
                         except Track.DoesNotExist:
                             pass
                         except Exception as e:
-                            logger.error(f"Error guardando audio features para {track_id}: {e}")
+                            logger.error(
+                                f"Error guardando audio features para {track_id}: {e}"
+                            )
 
                     self.stdout.write(
-                        self.style.SUCCESS(f"   [OK] {features_saved} registros de audio features guardados")
+                        self.style.SUCCESS(
+                            f"   [OK] {features_saved} registros de audio features guardados"
+                        )
                     )
 
             # 4. Mostrar resumen final
@@ -260,8 +295,11 @@ class Command(BaseCommand):
         except CommandError:
             raise
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"\n[ERROR] Error durante la sincronización:\n{e!s}\n"))
+            self.stdout.write(
+                self.style.ERROR(f"\n[ERROR] Error durante la sincronización:\n{e!s}\n")
+            )
             if verbose:
                 import traceback
+
                 traceback.print_exc()
-            raise CommandError(str(e))
+            raise CommandError(str(e)) from e

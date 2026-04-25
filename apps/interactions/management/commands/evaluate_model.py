@@ -12,11 +12,11 @@ Ejemplos:
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
+from django.utils import timezone
 
 from ml.training import (
     LOGS_DIR,
@@ -116,7 +116,9 @@ class Command(BaseCommand):
                     seed=options["seed"],
                     clear_existing=True,
                 )
-                self.stdout.write(self.style.SUCCESS("   ✅ Contexto sintético generado"))
+                self.stdout.write(
+                    self.style.SUCCESS("   ✅ Contexto sintético generado")
+                )
 
                 self.stdout.write("\n[SEED] Generando interacciones sintéticas...")
                 call_command(
@@ -126,10 +128,14 @@ class Command(BaseCommand):
                     interactions=options["synthetic_interactions"],
                     seed=options["seed"],
                 )
-                self.stdout.write(self.style.SUCCESS("   ✅ Interacciones sintéticas generadas"))
+                self.stdout.write(
+                    self.style.SUCCESS("   ✅ Interacciones sintéticas generadas")
+                )
 
             if auto_train:
-                self.stdout.write("\n[TRAIN] Entrenando modelo rápido para benchmark...")
+                self.stdout.write(
+                    "\n[TRAIN] Entrenando modelo rápido para benchmark..."
+                )
                 trainer = ModelTrainer(
                     episodes=options["benchmark_episodes"],
                     batch_size=64,
@@ -137,12 +143,16 @@ class Command(BaseCommand):
                 trainer.train_from_interactions(days=max(test_days, 7))
                 trainer.save_model(model_name="dqn_benchmark")
                 model_path = self._resolve_model_path(None)
-                self.stdout.write(self.style.SUCCESS(f"   ✅ Modelo benchmark: {model_path}"))
+                self.stdout.write(
+                    self.style.SUCCESS(f"   ✅ Modelo benchmark: {model_path}")
+                )
 
             model_path = self._resolve_model_path(model_path)
             self.stdout.write(f"   📁 Modelo: {model_path}")
 
-            self.stdout.write(f"\n📥 Cargando datos de prueba (últimos {test_days} días)...")
+            self.stdout.write(
+                f"\n📥 Cargando datos de prueba (últimos {test_days} días)..."
+            )
             test_interactions = TrainingDataLoader.load_interactions(
                 days=test_days,
                 limit=test_limit,
@@ -153,14 +163,17 @@ class Command(BaseCommand):
                 )
 
             self.stdout.write(
-                self.style.SUCCESS(f"   ✅ {len(test_interactions)} interacciones para prueba")
+                self.style.SUCCESS(
+                    f"   ✅ {len(test_interactions)} interacciones para prueba"
+                )
             )
 
             self.stdout.write("\n🔍 Evaluando modelo...")
             evaluator = ModelEvaluator(model_path)
             metrics = evaluator.evaluate_on_test_set(test_interactions)
             mean_reward = (
-                sum(inter.reward for inter in test_interactions) / len(test_interactions)
+                sum(inter.reward for inter in test_interactions)
+                / len(test_interactions)
                 if test_interactions
                 else 0.0
             )
@@ -173,7 +186,7 @@ class Command(BaseCommand):
             )
 
             benchmark_data = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": timezone.now().isoformat(),
                 "model_path": str(model_path),
                 "options": {
                     "test_days": test_days,
@@ -192,7 +205,9 @@ class Command(BaseCommand):
                 benchmark_data,
                 output=options["benchmark_output"],
             )
-            self.stdout.write(self.style.SUCCESS(f"   ✅ Benchmark guardado: {output_path}"))
+            self.stdout.write(
+                self.style.SUCCESS(f"   ✅ Benchmark guardado: {output_path}")
+            )
 
             # Mostrar recomendaciones si aplica
             if show_recommendations:
@@ -211,10 +226,12 @@ class Command(BaseCommand):
 
         except FileNotFoundError as e:
             self.stdout.write(self.style.ERROR(f"\n❌ Archivo no encontrado: {e!s}\n"))
-            raise CommandError(str(e))
+            raise CommandError(str(e)) from e
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"\n❌ Error durante la evaluación:\n{e!s}\n"))
-            raise CommandError(str(e))
+            self.stdout.write(
+                self.style.ERROR(f"\n❌ Error durante la evaluación:\n{e!s}\n")
+            )
+            raise CommandError(str(e)) from e
 
     @staticmethod
     def _resolve_model_path(model_path: str | None) -> str:
@@ -235,7 +252,10 @@ class Command(BaseCommand):
         if output:
             output_path = Path(output)
         else:
-            output_path = LOGS_DIR / f"evaluation_benchmark_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            output_path = (
+                LOGS_DIR
+                / f"evaluation_benchmark_{timezone.now().strftime('%Y%m%d_%H%M%S')}.json"
+            )
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
@@ -249,5 +269,7 @@ class Command(BaseCommand):
         User = get_user_model()
         user = User.objects.first()
         if user is None:
-            raise CommandError("No hay usuarios disponibles para mostrar recomendaciones")
+            raise CommandError(
+                "No hay usuarios disponibles para mostrar recomendaciones"
+            )
         return user

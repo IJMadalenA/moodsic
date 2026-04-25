@@ -185,9 +185,7 @@ def get_session_stats(request, session_id: str):
     session.calculate_metrics()
 
     skip_rate = (
-        session.skip_count / session.total_tracks
-        if session.total_tracks > 0
-        else 0.0
+        session.skip_count / session.total_tracks if session.total_tracks > 0 else 0.0
     )
     completion_rate = (
         session.completed_count / session.total_tracks
@@ -257,16 +255,13 @@ def get_dashboard_metrics(request):
 
     # Completion rate promedio
     avg_completion_rate = (
-        Interaction.objects.filter(feedback="completed").count()
-        / total_interactions
+        Interaction.objects.filter(feedback="completed").count() / total_interactions
         if total_interactions > 0
         else 0.0
     )
 
     # Total reward generado
-    total_reward = Interaction.objects.aggregate(
-        total=Sum("reward")
-    )["total"] or 0.0
+    total_reward = Interaction.objects.aggregate(total=Sum("reward"))["total"] or 0.0
 
     # Active sessions
     active_sessions = InteractionSession.objects.filter(is_active=True).count()
@@ -280,8 +275,7 @@ def get_dashboard_metrics(request):
 
     start_date = timezone.now().date() - timedelta(days=6)
     growth_data = (
-        Interaction.objects
-        .filter(created_at__date__gte=start_date)
+        Interaction.objects.filter(created_at__date__gte=start_date)
         .values("created_at__date")
         .annotate(
             new_users=Count("user", distinct=True),
@@ -290,19 +284,19 @@ def get_dashboard_metrics(request):
         .order_by("created_at__date")
     )
 
-    growth_map = {
-        item["created_at__date"]: item for item in growth_data
-    }
+    growth_map = {item["created_at__date"]: item for item in growth_data}
 
     user_growth = []
     for offset in range(7):
         day = start_date + timedelta(days=offset)
         item = growth_map.get(day, {})
-        user_growth.append({
-            "date": day.isoformat(),
-            "new_users": item.get("new_users", 0),
-            "interactions": item.get("interactions", 0),
-        })
+        user_growth.append(
+            {
+                "date": day.isoformat(),
+                "new_users": item.get("new_users", 0),
+                "interactions": item.get("interactions", 0),
+            }
+        )
 
     return {
         "total_users": total_users,
@@ -324,13 +318,21 @@ def _get_favorite_artists(user):
         .annotate(count=Count("id"))
         .order_by("-count")
     )
-    return [item["track__artists__name"] for item in artist_counts if item["track__artists__name"]][:5]
+    return [
+        item["track__artists__name"]
+        for item in artist_counts
+        if item["track__artists__name"]
+    ][:5]
 
 
 def _get_favorite_genres(user):
     """Retorna los géneros favoritos del usuario según los artistas de sus tracks."""
     genres_counter = Counter()
-    interactions = Interaction.objects.filter(user=user).select_related("track").prefetch_related("track__artists")
+    interactions = (
+        Interaction.objects.filter(user=user)
+        .select_related("track")
+        .prefetch_related("track__artists")
+    )
 
     for interaction in interactions:
         for artist in interaction.track.artists.all():

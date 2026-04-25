@@ -43,7 +43,7 @@ DEFAULT_NEWS_QUERIES = {
 class PlaylistGenerationService:
     """
     Servicio para generar playlists inteligentes usando el agente RL.
-    
+
     Coordina:
     1. Construcción del estado (contexto actual)
     2. Selección de tracks usando el agente
@@ -71,20 +71,19 @@ class PlaylistGenerationService:
     ) -> dict:
         """
         Genera una playlist personalizada para el usuario.
-        
+
         Args:
             user: Usuario para el que generar la playlist
             playlist_name: Nombre de la playlist
             count: Número de canciones a incluir
             weather_context: Diccionario con contexto climático
             use_context: Si usar el contexto en la generación
-            
+
         Returns:
             Dict con información de la playlist generada
         """
         logger.info(
-            f"Generando playlist para usuario {user.username} "
-            f"con {count} canciones"
+            f"Generando playlist para usuario {user.username} con {count} canciones"
         )
 
         try:
@@ -115,7 +114,7 @@ class PlaylistGenerationService:
                 user_history=user_history,
             )
             available_actions = sorted(
-                list(range(len(available_tracks))),
+                range(len(available_tracks)),
                 key=lambda idx: track_scores[idx],
                 reverse=True,
             )
@@ -158,7 +157,7 @@ class PlaylistGenerationService:
             # Seleccionar tracks usando el agente
             selected_track_indices = []
 
-            for step in range(count):
+            for _step in range(count):
                 # El agente selecciona la mejor acción (track)
                 action = self.agent.select_action(
                     state,
@@ -202,7 +201,9 @@ class PlaylistGenerationService:
                         tracks=selected_tracks,
                     )
                     if spotify_playlist:
-                        playlist.spotify_id = spotify_playlist.get("id", f"moodsic_{session_id}")
+                        playlist.spotify_id = spotify_playlist.get(
+                            "id", f"moodsic_{session_id}"
+                        )
                         playlist.uri = spotify_playlist.get("uri", "")
                         playlist.save()
                         generation_meta["used_spotify_sync"] = True
@@ -254,7 +255,7 @@ class PlaylistGenerationService:
     ) -> dict:
         """
         Registra la interacción del usuario con un track.
-        
+
         Args:
             user: Usuario
             track: Track reproducido
@@ -264,15 +265,14 @@ class PlaylistGenerationService:
             session_id: ID de la sesión
             weather_id: ID del contexto climático
             news_ids: IDs de noticias
-            
+
         Returns:
             Dict con información de la interacción registrada
         """
         from apps.interactions.models import Interaction
 
         logger.info(
-            f"Registrando interacción: {user.username} - {track.name} "
-            f"({feedback})"
+            f"Registrando interacción: {user.username} - {track.name} ({feedback})"
         )
 
         try:
@@ -331,7 +331,7 @@ class PlaylistGenerationService:
                     for n in NewsContext.objects.filter(id__in=news_ids)
                 ]
 
-            state = self.state_builder.build_state(
+            self.state_builder.build_state(
                 user,
                 weather_context,
                 audio_features,
@@ -378,12 +378,8 @@ class PlaylistGenerationService:
 
         skips = interactions.filter(feedback__startswith="skip").count()
         completed = interactions.filter(feedback="completed").count()
-        avg_reward = interactions.aggregate(
-            avg=Avg("reward")
-        )["avg"] or 0.0
-        total_reward = interactions.aggregate(
-            total=Sum("reward")
-        )["total"] or 0.0
+        avg_reward = interactions.aggregate(avg=Avg("reward"))["avg"] or 0.0
+        total_reward = interactions.aggregate(total=Sum("reward"))["total"] or 0.0
 
         stats = {
             "user_id": user.id,
@@ -401,9 +397,7 @@ class PlaylistGenerationService:
         stats["average_session_length"] = self.get_average_session_length(user)
         return stats
 
-    def _get_available_tracks(
-        self, user: User, limit: int = 500
-    ) -> list[Track]:
+    def _get_available_tracks(self, user: User, limit: int = 500) -> list[Track]:
         tracks, _meta = self._get_available_tracks_with_meta(user, limit=limit)
         return tracks
 
@@ -445,18 +439,29 @@ class PlaylistGenerationService:
             if not spotify_service.client:
                 return []
 
-            tracks_data = spotify_service.get_user_liked_tracks(limit=limit) or []
+            # Combine liked tracks and top tracks for more variety
+            half_limit = limit // 2
+            liked_raw = spotify_service.get_user_liked_tracks(limit=half_limit) or []
+            liked_tracks = [item["track"] for item in liked_raw if "track" in item]
+
+            top_tracks = (
+                spotify_service.get_top_tracks(limit=limit - len(liked_tracks)) or []
+            )
+
+            tracks_data = liked_tracks + top_tracks
+
             if not tracks_data:
-                tracks_data = spotify_service.get_top_tracks(limit=limit) or []
+                logger.info("No tracks found on Spotify for hydration.")
+                return []
 
             imported_tracks = self._upsert_spotify_tracks(tracks_data)
             if imported_tracks:
                 logger.info(
-                    f"Se importaron {len(imported_tracks)} tracks desde Spotify para fallback"
+                    f"Imported {len(imported_tracks)} tracks from Spotify for fallback hydration"
                 )
             return imported_tracks
         except Exception as exc:
-            logger.warning(f"No se pudieron hidratar tracks desde Spotify: {exc}")
+            logger.warning(f"Could not hydrate tracks from Spotify: {exc}")
             return []
 
     @staticmethod
@@ -469,8 +474,14 @@ class PlaylistGenerationService:
             if not spotify_id:
                 continue
 
-            album_name = (item.get("album") or "Unknown Album").strip() or "Unknown Album"
-            album_spotify_id = (item.get("album_id") or f"album_{spotify_id}").strip()
+            album_data = item.get("album")
+            if isinstance(album_data, dict):
+                album_name = album_data.get("name", "Unknown Album")
+                album_spotify_id = album_data.get("id", f"album_{spotify_id}")
+            else:
+                album_name = str(album_data or "Unknown Album")
+                album_spotify_id = f"album_{spotify_id}"
+
             album, _ = Album.objects.get_or_create(
                 spotify_id=album_spotify_id,
                 defaults={"name": album_name},
@@ -493,7 +504,9 @@ class PlaylistGenerationService:
             track.artists.clear()
             for artist_idx, artist_data in enumerate(item.get("artists", [])):
                 if isinstance(artist_data, dict):
-                    artist_name = (artist_data.get("name") or f"Artist {artist_idx + 1}").strip()
+                    artist_name = (
+                        artist_data.get("name") or f"Artist {artist_idx + 1}"
+                    ).strip()
                     artist_spotify_id = (
                         artist_data.get("id") or f"artist_{spotify_id}_{artist_idx}"
                     )
@@ -570,9 +583,11 @@ class PlaylistGenerationService:
         """
         from apps.interactions.models import Interaction
 
-        interactions = Interaction.objects.filter(user=user).select_related(
-            "track__audio_features"
-        ).prefetch_related("track__artists")
+        interactions = (
+            Interaction.objects.filter(user=user)
+            .select_related("track__audio_features")
+            .prefetch_related("track__artists")
+        )
 
         if interactions.count() == 0:
             return {
@@ -627,9 +642,11 @@ class PlaylistGenerationService:
         """
         from apps.interactions.models import Interaction
 
-        interactions = Interaction.objects.filter(user=user).select_related(
-            "track__audio_features"
-        ).prefetch_related("track__artists")
+        interactions = (
+            Interaction.objects.filter(user=user)
+            .select_related("track__audio_features")
+            .prefetch_related("track__artists")
+        )
 
         artist_counter = Counter()
         genre_counter = Counter()
@@ -675,8 +692,7 @@ class PlaylistGenerationService:
         """
         user_history = user_history or {}
         return [
-            self._score_track(track, weather_context, user_history)
-            for track in tracks
+            self._score_track(track, weather_context, user_history) for track in tracks
         ]
 
     @staticmethod
@@ -737,7 +753,9 @@ class PlaylistGenerationService:
             description = weather_context.get("description", "").lower()
             temperature = weather_context.get("temperature", 20)
 
-            if any(x in main for x in ["rain", "drizzle", "thunderstorm", "snow", "cloud"]):
+            if any(
+                x in main for x in ["rain", "drizzle", "thunderstorm", "snow", "cloud"]
+            ):
                 context_score += (1.0 - ((energy + danceability) / 2.0)) * 0.4
                 context_score += acousticness * 0.2
             if any(x in main for x in ["clear", "sunny"]) or "sun" in description:
@@ -836,60 +854,26 @@ class PlaylistGenerationService:
         user: User, playlist: Playlist, tracks: list[Track]
     ) -> dict | None:
         """
-        Sincroniza una playlist con Spotify, creándola y agregando tracks.
-        
-        Args:
-            user: Usuario (debe estar conectado a Spotify)
-            playlist: Objeto de playlist de Django
-            tracks: Lista de Track objects
-            
-        Returns:
-            Diccionario con información de la playlist de Spotify, o None
+        Sincroniza una playlist con Spotify usando la operación atómica del servicio.
         """
         try:
             spotify_service = SpotifyMusicService(user)
-
-            # 1. Obtener el ID de Spotify REAL del usuario antes de crear
-            # Esto evita el error ".../spotify.com/0"
-            sp_user = spotify_service.client.current_user()
-            sp_user_id = sp_user["id"]
-
-            logger.info(f"Creando playlist en Spotify para: {sp_user_id}")
-
-            # 2. Crear la playlist usando el cliente
-            spotify_playlist = spotify_service.create_playlist(
-                name=playlist.name,
-                description=f"Moodsic: {timezone.now().strftime('%Y-%m-%d')}",
-                public=playlist.is_public,
-            )
-
-            if not spotify_playlist:
-                logger.error("No se pudo crear playlist en Spotify")
-                return None
-
-            playlist_id = spotify_playlist.get("id")
-            logger.info(f"Playlist creada en Spotify: {playlist_id}")
-
-            # 2. Obtener URIs de los tracks
             track_uris = [t.uri for t in tracks if t.uri]
 
             if not track_uris:
-                logger.warning("No hay URIs de tracks disponibles para agregar a Spotify")
-                return spotify_playlist
+                logger.warning("No track URIs available for Spotify sync.")
+                return None
 
-            # 3. Agregar tracks a la playlist
-            logger.info(f"Agregando {len(track_uris)} tracks a playlist {playlist_id}")
-            success = spotify_service.add_tracks_to_playlist(playlist_id, track_uris)
-
-            if success:
-                logger.info(f"Tracks agregados exitosamente a playlist {playlist_id}")
-            else:
-                logger.warning(f"Hubo problemas agregando tracks a playlist {playlist_id}")
-
-            return spotify_playlist
-
+            return spotify_service.sync_playlist(
+                name=playlist.name,
+                description=f"Moodsic Playlist - {timezone.now().strftime('%Y-%m-%d')}",
+                track_uris=track_uris,
+                public=playlist.is_public,
+            )
         except Exception as e:
-            logger.error(f"Error sincronizando playlist con Spotify: {e}", exc_info=True)
+            logger.error(
+                f"Error synchronizing playlist with Spotify: {e}", exc_info=True
+            )
             return None
 
 

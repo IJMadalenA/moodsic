@@ -14,7 +14,7 @@ from apps.music.models import Track
 class Interaction(models.Model):
     """
     Registra la interacción de un usuario con una canción.
-    
+
     Incluye el tipo de feedback (skip, completed, etc) y la recompensa calculada.
     Esto es crucial para entrenar el agente RL.
     """
@@ -150,7 +150,7 @@ class Interaction(models.Model):
 class InteractionSession(models.Model):
     """
     Agrupa interacciones en sesiones de usuario.
-    
+
     Una sesión representa un período de uso continuo.
     """
 
@@ -238,9 +238,7 @@ class InteractionSession(models.Model):
         self.total_tracks = interactions.count()
         self.skip_count = interactions.filter(feedback__startswith="skip").count()
         self.completed_count = interactions.filter(feedback="completed").count()
-        self.average_reward = interactions.aggregate(
-            avg=Avg("reward")
-        )["avg"] or 0.0
+        self.average_reward = interactions.aggregate(avg=Avg("reward"))["avg"] or 0.0
         self.total_reward = sum(interactions.values_list("reward", flat=True))
 
         self.save()

@@ -18,11 +18,11 @@ class FixedSwagger(Swagger):
         # Sustituir URLs de CDN por locales
         content = content.replace(
             "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css",
-            static("vendor/swagger-ui/swagger-ui.css")
+            static("vendor/swagger-ui/swagger-ui.css"),
         )
         content = content.replace(
             "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js",
-            static("vendor/swagger-ui/swagger-ui-bundle.js")
+            static("vendor/swagger-ui/swagger-ui-bundle.js"),
         )
 
         # Asegurar que el preset también se carga localmente
@@ -30,12 +30,13 @@ class FixedSwagger(Swagger):
         preset_script_local = f'<script src="{static("vendor/swagger-ui/swagger-ui-standalone-preset.js")}"></script>'
 
         if bundle_script_local in content and preset_script_local not in content:
-            content = content.replace(bundle_script_local, f"{bundle_script_local}\n    {preset_script_local}")
+            content = content.replace(
+                bundle_script_local, f"{bundle_script_local}\n    {preset_script_local}"
+            )
 
         # Corregir error en el nombre del preset de Ninja
         content = content.replace(
-            "SwaggerUIBundle.SwaggerUIStandalonePreset",
-            "SwaggerUIStandalonePreset"
+            "SwaggerUIBundle.SwaggerUIStandalonePreset", "SwaggerUIStandalonePreset"
         )
 
         # Polyfill para crypto.randomUUID (necesario en contextos no seguros como 0.0.0.0)
@@ -57,11 +58,12 @@ class FixedSwagger(Swagger):
         # Sustituir favicon por uno local o neutral si es posible
         content = content.replace(
             "https://django-ninja.dev/img/favicon.svg",
-            "https://static.djangoproject.com/img/icon-touch.png" # Usar algo más común o simplemente dejarlo
+            "https://static.djangoproject.com/img/icon-touch.png",  # Usar algo más común o simplemente dejarlo
         )
 
         response.content = content.encode()
         return response
+
 
 # Crear API principal
 api = NinjaAPI(

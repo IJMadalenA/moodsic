@@ -24,6 +24,4 @@ class Command(BaseCommand):
             page_size=options["page_size"],
             category=options["category"],
         )
-        self.stdout.write(
-            self.style.SUCCESS(f"Stored {count} news context records.")
-        )
+        self.stdout.write(self.style.SUCCESS(f"Stored {count} news context records."))

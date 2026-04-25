@@ -1,4 +1,3 @@
-
 import pytest
 
 from apps.context.models import NewsContext
@@ -28,7 +27,7 @@ class TestPlaylistGenerationExtended:
             name="Track",
             duration_ms=200000,
             track_number=1,
-            album=album
+            album=album,
         )
         t.artists.add(artist)
         return t
@@ -41,7 +40,9 @@ class TestPlaylistGenerationExtended:
         score_no_news = service._score_track(track, weather_context, user_history)
 
         # Ahora con noticias positivas
-        NewsContext.objects.create(title="Happy", sentiment_score=0.9, is_breaking=False, url="h1")
+        NewsContext.objects.create(
+            title="Happy", sentiment_score=0.9, is_breaking=False, url="h1"
+        )
         # El servicio busca noticias de la categoria 'general' por defecto en _get_latest_news_contexts
 
         score_with_news = service._score_track(track, weather_context, user_history)
@@ -57,6 +58,7 @@ class TestPlaylistGenerationExtended:
 
     def test_sync_playlist_to_spotify_no_tracks(self, service, user):
         from apps.music.models import Playlist
+
         playlist = Playlist.objects.create(user=user, name="Empty")
         result = service._sync_playlist_to_spotify(user, playlist, [])
         assert result is None

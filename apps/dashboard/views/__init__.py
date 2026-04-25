@@ -14,7 +14,9 @@ def dashboard_home(request):
     active_sessions = InteractionSession.objects.filter(is_active=True).count()
 
     skip_count = Interaction.objects.filter(feedback__startswith="skip").count()
-    skip_rate = round((skip_count / total_interactions) * 100, 1) if total_interactions else 0.0
+    skip_rate = (
+        round((skip_count / total_interactions) * 100, 1) if total_interactions else 0.0
+    )
 
     integration_status = [
         {
@@ -47,7 +49,9 @@ def dashboard_home(request):
                 "weather_records": WeatherContext.objects.count(),
                 "news_records": NewsContext.objects.count(),
             },
-            "recent_playlists": Playlist.objects.select_related("user").order_by("-created_at")[:5],
+            "recent_playlists": Playlist.objects.select_related("user").order_by(
+                "-created_at"
+            )[:5],
             "integration_status": integration_status,
         },
     )

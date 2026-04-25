@@ -116,4 +116,3 @@ uv run manage.py fetch_news_context --query "music OR entertainment" --category 
 - No subas artefactos generados en ml/logs ni ml/models.
 - Usa benchmark_matrix cuando quieras comparar configuraciones, no solo entrenar una vez.
 - La configuración ganadora actual del recomendador parte de 0.6 contexto y 0.4 historial.
-

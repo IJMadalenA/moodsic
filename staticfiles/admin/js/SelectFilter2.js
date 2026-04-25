@@ -126,7 +126,7 @@ Requires core.js and SelectBox.js.
                 interpolate(gettext('Remove %s by selecting them and then select the "Remove" arrow button.'), [field_name]),
                 'id', `${field_id}_remove_helptext`, 'class', 'helptext'
             );
-            
+
             const filter_selected_p = quickElement('p', selector_chosen, '', 'id', field_id + '_filter_selected');
             filter_selected_p.className = 'selector-filter';
 

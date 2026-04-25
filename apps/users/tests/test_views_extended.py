@@ -17,16 +17,15 @@ class TestUserViewsExtended:
     @pytest.fixture(autouse=True)
     def setup_social_app(self):
         from allauth.socialaccount.models import SocialApp
+        from django.conf import settings
         from django.contrib.sites.models import Site
-        site = Site.objects.get_current()
-        app = SocialApp.objects.create(
-            provider="spotify",
-            name="Spotify",
-            client_id="client_id",
-            secret="secret"
+
+        _site, _ = Site.objects.get_or_create(
+            id=getattr(settings, "SITE_ID", 1),
+            defaults={"domain": "example.com", "name": "example.com"},
         )
-        app.sites.add(site)
-        return app
+        # Borramos las de la DB para que allauth use la de settings.py
+        SocialApp.objects.filter(provider="spotify").delete()
 
     def test_profile_view_authenticated(self, client, user):
         client.force_login(user)

@@ -7,12 +7,12 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
+from django.utils import timezone
 
 
 class Command(BaseCommand):
@@ -68,19 +68,31 @@ class Command(BaseCommand):
             help="Maximum files read by benchmark_summary",
         )
         parser.add_argument("--test-days", type=int, default=self.DEFAULTS["test_days"])
-        parser.add_argument("--test-limit", type=int, default=self.DEFAULTS["test_limit"])
         parser.add_argument(
-            "--benchmark-episodes", type=int, default=self.DEFAULTS["benchmark_episodes"]
+            "--test-limit", type=int, default=self.DEFAULTS["test_limit"]
         )
-        parser.add_argument("--synthetic-users", type=int, default=self.DEFAULTS["synthetic_users"])
-        parser.add_argument("--synthetic-tracks", type=int, default=self.DEFAULTS["synthetic_tracks"])
         parser.add_argument(
-            "--synthetic-interactions", type=int, default=self.DEFAULTS["synthetic_interactions"]
+            "--benchmark-episodes",
+            type=int,
+            default=self.DEFAULTS["benchmark_episodes"],
+        )
+        parser.add_argument(
+            "--synthetic-users", type=int, default=self.DEFAULTS["synthetic_users"]
+        )
+        parser.add_argument(
+            "--synthetic-tracks", type=int, default=self.DEFAULTS["synthetic_tracks"]
+        )
+        parser.add_argument(
+            "--synthetic-interactions",
+            type=int,
+            default=self.DEFAULTS["synthetic_interactions"],
         )
         parser.add_argument(
             "--synthetic-weather", type=int, default=self.DEFAULTS["synthetic_weather"]
         )
-        parser.add_argument("--synthetic-news", type=int, default=self.DEFAULTS["synthetic_news"])
+        parser.add_argument(
+            "--synthetic-news", type=int, default=self.DEFAULTS["synthetic_news"]
+        )
         parser.add_argument(
             "--skip-runs",
             action="store_true",
@@ -115,7 +127,9 @@ class Command(BaseCommand):
             raise CommandError("robustness-alpha must be non-negative")
         alpha_values = self._parse_alphas(options.get("alphas", ""), robustness_alpha)
 
-        run_suffix = options["run_name"].strip() or datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_suffix = options["run_name"].strip() or timezone.now().strftime(
+            "%Y%m%d_%H%M%S"
+        )
         run_dir = Path(options["base_dir"]) / f"benchmark_matrix_{run_suffix}"
         run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -193,7 +207,11 @@ class Command(BaseCommand):
                 )
 
             consolidated_rows.sort(
-                key=lambda r: float(r["robust_score"]) if isinstance(r.get("robust_score"), (int, float)) else float("-inf"),
+                key=lambda r: (
+                    float(r["robust_score"])
+                    if isinstance(r.get("robust_score"), (int, float))
+                    else float("-inf")
+                ),
                 reverse=True,
             )
             for idx, row in enumerate(consolidated_rows, start=1):
@@ -204,7 +222,9 @@ class Command(BaseCommand):
                 consolidated_csv = run_dir / "benchmark_weights_summary.csv"
             else:
                 consolidated_md = run_dir / f"benchmark_weights_summary_{alpha_slug}.md"
-                consolidated_csv = run_dir / f"benchmark_weights_summary_{alpha_slug}.csv"
+                consolidated_csv = (
+                    run_dir / f"benchmark_weights_summary_{alpha_slug}.csv"
+                )
 
             self._write_consolidated_outputs(
                 rows=consolidated_rows,
@@ -259,7 +279,9 @@ class Command(BaseCommand):
                     )
                 )
 
-        self.stdout.write(self.style.SUCCESS(f"\n✅ Matrix run completed. Index: {index_path}"))
+        self.stdout.write(
+            self.style.SUCCESS(f"\n✅ Matrix run completed. Index: {index_path}")
+        )
         if alpha_winners:
             winner = alpha_winners[0]
             self.stdout.write(
@@ -309,7 +331,9 @@ class Command(BaseCommand):
             if not token:
                 continue
             if ":" not in token:
-                raise CommandError(f"Invalid weight pair format: {token}. Expected w_acc:w_reward")
+                raise CommandError(
+                    f"Invalid weight pair format: {token}. Expected w_acc:w_reward"
+                )
             left, right = token.split(":", 1)
             try:
                 w_acc = float(left.strip())
@@ -317,7 +341,9 @@ class Command(BaseCommand):
             except ValueError as exc:
                 raise CommandError(f"Invalid weight pair values: {token}") from exc
             if w_acc < 0 or w_reward < 0 or (w_acc + w_reward) <= 0:
-                raise CommandError(f"Weight pair must be non-negative and sum > 0: {token}")
+                raise CommandError(
+                    f"Weight pair must be non-negative and sum > 0: {token}"
+                )
             pairs.append((w_acc, w_reward))
 
         if not pairs:
@@ -440,13 +466,16 @@ class Command(BaseCommand):
             encoding="utf-8",
             errors="replace",
             env=env,
+            check=False,
         )
         if result.stdout:
             self.stdout.write(result.stdout)
         if result.returncode != 0:
             if result.stderr:
                 self.stderr.write(result.stderr)
-            raise CommandError(f"evaluate_model failed for seed={seed} with code {result.returncode}")
+            raise CommandError(
+                f"evaluate_model failed for seed={seed} with code {result.returncode}"
+            )
 
     def _load_weight_summary_row(
         self, csv_path: Path, w_acc: float, w_reward: float, robustness_alpha: float
@@ -468,7 +497,7 @@ class Command(BaseCommand):
         if comp_scores:
             comp_mean = sum(comp_scores) / len(comp_scores)
             variance = sum((v - comp_mean) ** 2 for v in comp_scores) / len(comp_scores)
-            comp_std = variance ** 0.5
+            comp_std = variance**0.5
             robust_score = comp_mean - robustness_alpha * comp_std
             best_comp = max(comp_scores)
             worst_comp = min(comp_scores)
@@ -601,7 +630,12 @@ class Command(BaseCommand):
         with open(csv_path, "w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(
                 f,
-                fieldnames=["alpha", "winner_w_accuracy", "winner_w_reward", "robust_score"],
+                fieldnames=[
+                    "alpha",
+                    "winner_w_accuracy",
+                    "winner_w_reward",
+                    "robust_score",
+                ],
             )
             writer.writeheader()
             for row in winners_sorted:

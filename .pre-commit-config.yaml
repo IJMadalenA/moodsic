@@ -27,19 +27,23 @@ repos:
       - id: fix-byte-order-marker
         name: fix-byte-order-marker...................(removes byte order markers from files)
       - id: end-of-file-fixer
+        exclude: ".*/migrations/.*|.*\\.txt$|.*\\.json$|.*\\.h5$|.*\\.png$"
       - id: mixed-line-ending
         args: [ --fix=lf ]
       - id: requirements-txt-fixer
       - id: trailing-whitespace
         name: trailing-whitespace.....................(removes trailing whitespace from files)
         args: [ --markdown-linebreak-ext=md ]
-        exclude: "snapshots"
+        exclude: "snapshots|.*/migrations/.*|.*\\.txt$|.*\\.json$|.*\\.h5$|.*\\.png$"
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.9.6
     hooks:
       - id: ruff
         name: ruff....................................(linting and auto-fix)
-        args: [ --fix ]
+        args: [ --fix, --config=pyproject.toml ]
+        exclude: ".*/migrations/.*"
       - id: ruff-format
         name: ruff-format.............................(code formatter)
+        args: [ --config=pyproject.toml ]
+        exclude: ".*/migrations/.*"

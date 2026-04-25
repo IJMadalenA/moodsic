@@ -9,6 +9,7 @@ from apps.music.services.music_briefing_service import MusicBriefingService
 class TestMusicBriefingService:
     def test_generate_briefing(self):
         from cities_light.models import Country, Region
+
         country = Country.objects.create(name="Spain", code2="ES")
         region = Region.objects.create(name="Madrid", country=country)
 
@@ -19,7 +20,7 @@ class TestMusicBriefingService:
             feels_like=25.0,
             region=region,
             country=country,
-            timestamp=timezone.now()
+            timestamp=timezone.now(),
         )
 
         briefing = MusicBriefingService.generate_briefing(weather)

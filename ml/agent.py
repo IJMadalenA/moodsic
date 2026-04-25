@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class DQNAgent:
     """
     Deep Q-Network Agent para selección de canciones.
-    
+
     El agente aprende a mapear estados (contexto) a acciones (tracks)
     que maximicen el reward esperado (satisfacción del usuario).
     """
@@ -45,7 +45,7 @@ class DQNAgent:
     ):
         """
         Inicializa el Agente DQN.
-        
+
         Args:
             state_dim: Dimensión del vector de estado (45)
             action_dim: Número de acciones posibles (tracks disponibles)
@@ -86,12 +86,14 @@ class DQNAgent:
         self.steps = 0
         self.episodes = 0
 
-        logger.info(f"DQN Agent inicializado. State dim: {state_dim}, Action dim: {action_dim}")
+        logger.info(
+            f"DQN Agent inicializado. State dim: {state_dim}, Action dim: {action_dim}"
+        )
 
     def _build_network(self) -> keras.Model:
         """
         Construye la red neuronal Q-Network.
-        
+
         Arquitectura: Input -> Dense(128) -> ReLU -> Dense(128) -> ReLU -> Output
         """
         inputs = layers.Input(shape=(self.state_dim,))
@@ -123,15 +125,15 @@ class DQNAgent:
     ) -> int:
         """
         Selecciona una acción (track) usando Epsilon-Greedy.
-        
+
         Con probabilidad epsilon, explora (selecciona aleatoriamente).
         Con probabilidad 1-epsilon, explota (selecciona mejor acción conocida).
-        
+
         Args:
             state: Vector de estado normalizado
             available_actions: Lista de índices de acciones disponibles
             training: Si True, use epsilon-greedy; si False, siempre explota
-            
+
         Returns:
             int: Índice de la acción (track) seleccionada
         """
@@ -164,7 +166,7 @@ class DQNAgent:
     ) -> None:
         """
         Guarda una experiencia en el replay buffer.
-        
+
         Args:
             state: Estado inicial
             action: Acción tomada
@@ -177,7 +179,7 @@ class DQNAgent:
     def replay(self) -> float | None:
         """
         Entrena la red con un mini-batch del replay buffer.
-        
+
         Returns:
             float: Loss del batch, o None si no hay suficientes experiencias
         """
@@ -188,7 +190,7 @@ class DQNAgent:
         batch = np.random.choice(len(self.memory), self.batch_size, replace=False)
         experiences = [self.memory[i] for i in batch]
 
-        states, actions, rewards, next_states, dones = zip(*experiences)
+        states, actions, rewards, next_states, dones = zip(*experiences, strict=False)
 
         states = np.array(states, dtype=np.float32)
         next_states = np.array(next_states, dtype=np.float32)
@@ -217,7 +219,7 @@ class DQNAgent:
         # Backpropagation
         gradients = tape.gradient(loss, self.q_network.trainable_variables)
         self.optimizer.apply_gradients(
-            zip(gradients, self.q_network.trainable_variables)
+            zip(gradients, self.q_network.trainable_variables, strict=False)
         )
 
         self.steps += 1
@@ -231,7 +233,7 @@ class DQNAgent:
     def _update_target_network(self) -> None:
         """
         Actualiza target network con pesos de la red principal.
-        
+
         Esto estabiliza el entrenamiento.
         """
         self.target_network.set_weights(self.q_network.get_weights())
@@ -239,7 +241,7 @@ class DQNAgent:
     def update_target_network(self, update_frequency: int = 1000) -> None:
         """
         Actualiza target network cada cierto número de steps.
-        
+
         Args:
             update_frequency: Cada cuántos steps actualizar
         """
@@ -249,7 +251,7 @@ class DQNAgent:
     def save_model(self, filepath: str | None = None) -> None:
         """
         Guarda el modelo a disco.
-        
+
         Args:
             filepath: Ruta donde guardar (usa self.model_path si no se especifica)
         """
@@ -260,7 +262,7 @@ class DQNAgent:
     def load_model(self, filepath: str | None = None) -> None:
         """
         Carga un modelo previamente entrenado.
-        
+
         Args:
             filepath: Ruta del modelo a cargar
         """
@@ -272,12 +274,12 @@ class DQNAgent:
     def get_q_values(self, state: np.ndarray) -> np.ndarray:
         """
         Obtiene los Q-values de un estado.
-        
+
         Útil para debugging y análisis.
-        
+
         Args:
             state: Vector de estado
-            
+
         Returns:
             np.ndarray: Array de Q-values para cada acción
         """
@@ -293,12 +295,12 @@ class DQNAgent:
     ) -> list[tuple[int, float]]:
         """
         Obtiene las mejores acciones ordenadas por Q-value.
-        
+
         Args:
             state: Vector de estado
             available_actions: Acciones disponibles
             top_k: Número de mejores acciones a retornar
-            
+
         Returns:
             List[Tuple[int, float]]: Lista de (action_idx, q_value) ordenada
         """
@@ -343,7 +345,7 @@ class DQNAgent:
 class TrainingLoop:
     """
     Loop de entrenamiento para el agente DQN.
-    
+
     Coordina la interacción entre el agente, el entorno, y el almacenamiento
     de experiencias para un entrenamiento continuo.
     """
@@ -357,7 +359,7 @@ class TrainingLoop:
     ):
         """
         Inicializa el loop de entrenamiento.
-        
+
         Args:
             agent: Instancia de DQNAgent
             episodes: Número de episodios a entrenar
@@ -374,7 +376,7 @@ class TrainingLoop:
     def train(self) -> dict[str, list[float]]:
         """
         Ejecuta el loop de entrenamiento (sobre episodios).
-        
+
         Returns:
             Dict con histórico de rewards y losses
         """
@@ -388,7 +390,7 @@ class TrainingLoop:
             self.agent.episodes += 1
 
             # Al final del episodio, entrenar con replay
-            for step in range(min(len(self.agent.memory), 10)):
+            for _step in range(min(len(self.agent.memory), 10)):
                 loss = self.agent.replay()
                 if loss is not None:
                     episode_loss_values.append(loss)

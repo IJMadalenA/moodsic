@@ -17,6 +17,7 @@ from apps.interactions.services.playlist_generation_service import (
     get_playlist_generation_service,
 )
 from apps.music.models import Album, Artist, Playlist, Track, TrackAudioFeatures
+from apps.music.services.playlist_creator_service import PlaylistCreatorService
 from apps.music.services.spotify_music_service import SpotifyMusicService
 
 logger = logging.getLogger(__name__)
@@ -95,12 +96,24 @@ def generate_playlist(request, payload: PlaylistGenerateSchema):
                         if weather.feels_like is not None
                         else base_temperature
                     ),
-                    "humidity": weather.humidity if weather.humidity is not None else 60,
-                    "wind_speed": weather.wind_speed if weather.wind_speed is not None else 0,
-                    "pressure": weather.pressure if weather.pressure is not None else 1013,
-                    "visibility": weather.visibility if weather.visibility is not None else 10000,
-                    "clouds_all": weather.clouds_all if weather.clouds_all is not None else 50,
-                    "rain_probability": weather.rain_1h if weather.rain_1h is not None else 0,
+                    "humidity": weather.humidity
+                    if weather.humidity is not None
+                    else 60,
+                    "wind_speed": weather.wind_speed
+                    if weather.wind_speed is not None
+                    else 0,
+                    "pressure": weather.pressure
+                    if weather.pressure is not None
+                    else 1013,
+                    "visibility": weather.visibility
+                    if weather.visibility is not None
+                    else 10000,
+                    "clouds_all": weather.clouds_all
+                    if weather.clouds_all is not None
+                    else 50,
+                    "rain_probability": weather.rain_1h
+                    if weather.rain_1h is not None
+                    else 0,
                     "main_status": weather.main_status,
                     "description": weather.description,
                     "timestamp": weather.timestamp.isoformat(),
@@ -185,16 +198,18 @@ def list_user_playlists(request):
         result = []
         for playlist in playlists:
             tracks = playlist.tracks.all()
-            result.append({
-                "playlist_id": playlist.spotify_id,
-                "playlist_name": playlist.name,
-                "user_id": playlist.user_id,
-                "tracks_count": tracks.count(),
-                "is_public": playlist.is_public,
-                "estimated_duration": sum(t.duration_ms for t in tracks) // 1000,
-                "created_at": playlist.created_at.isoformat(),
-                "spotify_uri": playlist.uri,
-            })
+            result.append(
+                {
+                    "playlist_id": playlist.spotify_id,
+                    "playlist_name": playlist.name,
+                    "user_id": playlist.user_id,
+                    "tracks_count": tracks.count(),
+                    "is_public": playlist.is_public,
+                    "estimated_duration": sum(t.duration_ms for t in tracks) // 1000,
+                    "created_at": playlist.created_at.isoformat(),
+                    "spotify_uri": playlist.uri,
+                }
+            )
 
         return {"playlists": result, "total": len(result)}
 
@@ -243,7 +258,9 @@ def get_playlist_details(request, playlist_id: str):
             "tracks_count": tracks.count(),
             "track_ids": [t.id for t in tracks],
             "track_names": [t.name for t in tracks],
-            "track_artists": [", ".join([a.name for a in t.artists.all()]) for t in tracks],
+            "track_artists": [
+                ", ".join([a.name for a in t.artists.all()]) for t in tracks
+            ],
             "estimated_duration": sum(t.duration_ms for t in tracks) // 1000,
             "is_public": playlist.is_public,
             "created_at": playlist.created_at.isoformat(),
@@ -266,103 +283,193 @@ def get_playlist_details(request, playlist_id: str):
     "/playlists/{playlist_id}/sync-spotify/",
     tags=["playlists"],
 )
-@router.post(
-    "/playlists/{playlist_id}/sync-spotify/",
-    tags=["playlists"],
-)
 def sync_playlist_to_spotify(request, playlist_id: str):
     """
     Sincroniza una playlist generada localmente con la cuenta real de Spotify del usuario.
     """
+    if not request.user.is_authenticated:
+        return Response({"error": "Autenticación requerida"}, status=401)
+
     try:
-        # 1. Usamos el usuario actual autenticado en la petición (ej. martinmiguelanez)
-        target_user = request.user
-
-        # --- PRINT DE DEPURACIÓN ---
-        print("\n--- DEBUG SYNC ---")
-        print(f"Usuario detectado: {target_user}")
-        print(f"ID del usuario: {target_user.id}")
-        print(f"¿Está autenticado?: {target_user.is_authenticated}")
-        print("------------------\n")
-
-        # 2. Verificación de seguridad: Comprobamos si el usuario tiene tokens
-        # Se verifica tanto el campo is_spotify_connected como la existencia del token
-        if not hasattr(target_user, "access_token") or not target_user.access_token:
-            return Response(
-                {
-                    "success": False,
-                    "error": "Usuario no está conectado a Spotify",
-                    "message": f"El usuario {target_user.username} no tiene tokens de acceso en la base de datos.",
-                },
-                status=403,
-            )
-
-        # 3. Obtener la playlist local generada previamente
-        # Filtramos por user para asegurar que nadie sincronice playlists de otros
-        playlist = Playlist.objects.get(spotify_id=playlist_id, user=target_user)
+        # 1. Obtener la playlist local
+        playlist = Playlist.objects.get(spotify_id=playlist_id, user=request.user)
         tracks = playlist.tracks.all()
 
         if not tracks.exists():
             return Response(
                 {
-                    "success": False,
                     "error": "Playlist vacía",
-                    "message": "La playlist seleccionada no contiene canciones para sincronizar.",
+                    "message": "No hay canciones para sincronizar.",
                 },
                 status=400,
             )
 
-        # 4. Inicializar el servicio de Spotify con los tokens del usuario actual
-        spotify_service = SpotifyMusicService(target_user)
+        # 2. Inicializar servicios
+        spotify_service = SpotifyMusicService(request.user)
+        if not spotify_service.client:
+            return Response(
+                {
+                    "error": "Spotify no conectado",
+                    "message": "No se pudo establecer conexión con Spotify. Por favor, verifique su conexión en /api/interactions/spotify/check-connection/",
+                },
+                status=403,
+            )
 
-        # 5. Crear la playlist física en la cuenta de Spotify
-        spotify_playlist = spotify_service.create_playlist(
+        creator_service = PlaylistCreatorService(spotify_service)
+        track_uris = [t.uri for t in tracks if t.uri]
+
+        # 3. Sincronización atómica
+        spotify_playlist = creator_service.create_atomic_playlist(
             name=playlist.name,
-            description="Generada por Moodsic AI",
+            description=f"Generada por Moodsic AI - {playlist_id}",
+            track_uris=track_uris,
             public=playlist.is_public,
         )
 
         if not spotify_playlist:
             return Response(
-                {"success": False, "error": "Error al crear la playlist en los servidores de Spotify"},
-                status=500
+                {
+                    "error": "Error de sincronización",
+                    "message": "No se pudo crear la playlist en Spotify.",
+                },
+                status=500,
             )
 
-        # 6. Extraer URIs de las canciones y agregarlas a la playlist creada
-        track_uris = [t.uri for t in tracks if t.uri]
-        if track_uris:
-            spotify_service.add_tracks_to_playlist(spotify_playlist.get("id"), track_uris)
-
-        # 7. Actualizar la playlist local con el URI de Spotify (opcional, para referencia futura)
-        playlist.uri = spotify_playlist.get("uri")
+        # 4. Actualizar referencia local
+        playlist.uri = spotify_playlist.get("uri") or ""
         playlist.save()
 
         return {
             "success": True,
             "spotify_id": spotify_playlist.get("id"),
-            "external_url": spotify_playlist.get("external_urls", {}).get("spotify", ""),
+            "external_url": spotify_playlist.get("external_urls", {}).get(
+                "spotify", ""
+            ),
             "tracks_added": len(track_uris),
-            "message": f"¡Éxito! Se han añadido {len(track_uris)} canciones a tu Spotify."
+            "message": f"Sincronización exitosa: {len(track_uris)} canciones añadidas.",
         }
 
     except Playlist.DoesNotExist:
-        return Response(
-            {
-                "error": "Playlist local no encontrada",
-                "message": f"No se encontró la playlist con ID {playlist_id} para este usuario."
-            },
-            status=404
-        )
+        return Response({"error": "Playlist no encontrada"}, status=404)
     except Exception as e:
-        logger.error(f"Error en sync_playlist_to_spotify: {e!s}", exc_info=True)
-        return Response({"error": "Error interno del servidor", "detail": str(e)}, status=500)
+        logger.error(f"Error en sync_playlist_to_spotify: {e}", exc_info=True)
+        return Response(
+            {"error": "Internal server error", "detail": str(e)}, status=500
+        )
+
+
+@router.get(
+    "/playlists/{playlist_id}/stats/",
+    tags=["playlists"],
+)
+def get_playlist_stats_endpoint(request, playlist_id: str):
+    """
+    Obtiene estadísticas detalladas de una playlist desde Spotify.
+    """
+    if not request.user.is_authenticated:
+        return Response({"error": "Unauthorized"}, status=401)
+
+    try:
+        spotify_service = SpotifyMusicService(request.user)
+        if not spotify_service.client:
+            return Response(
+                {
+                    "error": "Spotify no conectado",
+                    "message": "No se pudo establecer conexión con Spotify. Por favor, verifique su conexión en /api/interactions/spotify/check-connection/",
+                },
+                status=403,
+            )
+
+        creator_service = PlaylistCreatorService(spotify_service)
+        stats = creator_service.get_playlist_details_with_stats(playlist_id)
+
+        if not stats:
+            return Response({"error": "Could not retrieve stats"}, status=404)
+
+        return stats
+    except Exception as e:
+        logger.error(f"Error getting playlist stats: {e}")
+        return Response({"error": str(e)}, status=500)
+
+
+@router.get(
+    "/spotify/check-connection/",
+    tags=["spotify"],
+)
+def check_spotify_connection(request):
+    """
+    Verifica el estado de la conexión con Spotify para el usuario autenticado.
+    """
+    if not request.user.is_authenticated:
+        return Response({"error": "Autenticación requerida"}, status=401)
+
+    results = {
+        "user": request.user.username,
+        "network_reachable": False,
+        "app_credentials_valid": False,
+        "user_connected": False,
+        "token_valid": False,
+        "details": {},
+        "suggestions": [],
+    }
+
+    # 1. Verificar Red
+    try:
+        results["network_reachable"] = SpotifyMusicService.check_network_access()
+    except Exception as e:
+        results["details"]["network_error"] = str(e)
+        results["suggestions"].append(
+            "Verifique su conexión a internet y que api.spotify.com no esté bloqueado."
+        )
+
+    # 2. Verificar Credenciales de App
+    success, msg = SpotifyMusicService.verify_api_connection()
+    results["app_credentials_valid"] = success
+    if not success:
+        results["details"]["app_error"] = msg
+        results["suggestions"].append(
+            "Verifique SPOTIPY_CLIENT_ID y SPOTIPY_CLIENT_SECRET en su archivo .env"
+        )
+
+    # 3. Verificar Conexión de Usuario
+    from allauth.socialaccount.models import SocialToken
+
+    service = SpotifyMusicService(request.user)
+    results["user_connected"] = (
+        service.user.is_spotify_connected
+        or SocialToken.objects.filter(
+            account__user=request.user, account__provider="spotify"
+        ).exists()
+    )
+
+    if service.client:
+        results["token_valid"] = True
+        user_info = service.get_user_info()
+        if user_info:
+            results["details"]["spotify_user"] = user_info.get("display_name")
+            results["details"]["spotify_id"] = user_info.get("id")
+        else:
+            results["token_valid"] = False
+            results["suggestions"].append(
+                "El token parece haber expirado o no tiene permisos suficientes."
+            )
+    elif results["user_connected"]:
+        results["suggestions"].append(
+            "Hay un registro de conexión pero el token no es válido o ha expirado. Intente cerrar sesión y volver a entrar con Spotify."
+        )
+    else:
+        results["suggestions"].append(
+            "No se encontró una conexión de Spotify. Por favor, inicie sesión en /accounts/spotify/login/"
+        )
+
+    return results
 
 
 @router.post(
     "/tracks/sync/",
     tags=["tracks"],
 )
-def sync_tracks_from_spotify(  # noqa: C901, PLR0912
+def sync_tracks_from_spotify(
     request,
     source: str = "liked",
     limit: int = 50,
@@ -416,7 +523,7 @@ def sync_tracks_from_spotify(  # noqa: C901, PLR0912
                 "synced_count": 0,
                 "skipped_count": 0,
                 "total_processed": 0,
-                "message": "No se encontraron tracks"
+                "message": "No se encontraron tracks",
             }
 
         # Guardar tracks
@@ -479,11 +586,14 @@ def sync_tracks_from_spotify(  # noqa: C901, PLR0912
                     saved_count += 1
 
                     # Guardar audio features si están disponibles
-                    if save_audio_features and track_data.get("id") in audio_features_data:
+                    if (
+                        save_audio_features
+                        and track_data.get("id") in audio_features_data
+                    ):
                         try:
                             TrackAudioFeatures.objects.get_or_create(
                                 track=track,
-                                defaults=audio_features_data[track_data.get("id")]
+                                defaults=audio_features_data[track_data.get("id")],
                             )
                         except Exception as e:
                             logger.warning(f"Error saving audio features: {e}")
@@ -494,7 +604,9 @@ def sync_tracks_from_spotify(  # noqa: C901, PLR0912
                 logger.error(f"Error procesando track: {e}")
                 continue
 
-        logger.info(f"Sincronización completada: {saved_count} nuevos, {skipped_count} existentes")
+        logger.info(
+            f"Sincronización completada: {saved_count} nuevos, {skipped_count} existentes"
+        )
 
         return {
             "success": True,
@@ -502,7 +614,7 @@ def sync_tracks_from_spotify(  # noqa: C901, PLR0912
             "skipped_count": skipped_count,
             "total_processed": len(tracks_data),
             "source": source,
-            "message": f"Sincronización completada: {saved_count} nuevos tracks"
+            "message": f"Sincronización completada: {saved_count} nuevos tracks",
         }
 
     except Exception as e:

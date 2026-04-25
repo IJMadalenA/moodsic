@@ -25,15 +25,11 @@ class TestSpotifyMusicServiceExtended:
     def user_with_spotify(self):
         """Crea un usuario conectado a Spotify."""
         user = User.objects.create_user(
-            username="spotify_user",
-            email="spotify@test.com",
-            is_spotify_connected=True
+            username="spotify_user", email="spotify@test.com", is_spotify_connected=True
         )
         # Crear social account y token
         account = SocialAccount.objects.create(
-            user=user,
-            provider="spotify",
-            uid="spotify_123"
+            user=user, provider="spotify", uid="spotify_123"
         )
         SocialToken.objects.create(
             account=account,
@@ -144,15 +140,15 @@ class TestSpotifyMusicServiceExtended:
             "name": "Test Playlist",
             "uri": "spotify:playlist:new_playlist_123",
             "snapshot_id": "snapshot_123",
-            "external_urls": {"spotify": "https://open.spotify.com/playlist/new_playlist_123"},
+            "external_urls": {
+                "spotify": "https://open.spotify.com/playlist/new_playlist_123"
+            },
             "images": [],
         }
 
         service = SpotifyMusicService(user_with_spotify)
         playlist = service.create_playlist(
-            name="Test Playlist",
-            description="Test Description",
-            public=True
+            name="Test Playlist", description="Test Description", public=True
         )
 
         assert playlist is not None
@@ -220,12 +216,10 @@ class TestPlaylistGenerationWithSpotify:
         user = User.objects.create_user(
             username="playlist_user",
             email="playlist@test.com",
-            is_spotify_connected=True
+            is_spotify_connected=True,
         )
         account = SocialAccount.objects.create(
-            user=user,
-            provider="spotify",
-            uid="spotify_456"
+            user=user, provider="spotify", uid="spotify_456"
         )
         SocialToken.objects.create(
             account=account,
@@ -258,7 +252,9 @@ class TestPlaylistGenerationWithSpotify:
         return tracks
 
     @patch("apps.interactions.services.playlist_generation_service.SpotifyMusicService")
-    def test_playlist_sync_to_spotify(self, mock_spotify_service_class, user_with_spotify, sample_tracks):
+    def test_playlist_sync_to_spotify(
+        self, mock_spotify_service_class, user_with_spotify, sample_tracks
+    ):
         """Test sincronizando playlist con Spotify."""
         from apps.interactions.services.playlist_generation_service import (
             PlaylistGenerationService,
@@ -268,11 +264,16 @@ class TestPlaylistGenerationWithSpotify:
         mock_service = MagicMock()
         mock_spotify_service_class.return_value = mock_service
         mock_service.client = MagicMock()
-        mock_service.create_playlist.return_value = {
+        mock_service.sync_playlist.return_value = {
             "id": "spotify_playlist_123",
             "uri": "spotify:playlist:spotify_playlist_123",
-            "external_urls": {"spotify": "https://open.spotify.com/playlist/spotify_playlist_123"},
+            "external_urls": {
+                "spotify": "https://open.spotify.com/playlist/spotify_playlist_123"
+            },
         }
+        mock_service.create_playlist.return_value = (
+            mock_service.sync_playlist.return_value
+        )
         mock_service.add_tracks_to_playlist.return_value = True
 
         # Crear playlist localmente
@@ -286,12 +287,13 @@ class TestPlaylistGenerationWithSpotify:
 
         # Sincronizar con Spotify
         service = PlaylistGenerationService()
-        result = service._sync_playlist_to_spotify(user_with_spotify, playlist, sample_tracks)
+        result = service._sync_playlist_to_spotify(
+            user_with_spotify, playlist, sample_tracks
+        )
 
         assert result is not None
         assert result["id"] == "spotify_playlist_123"
-        mock_service.create_playlist.assert_called_once()
-        mock_service.add_tracks_to_playlist.assert_called_once()
+        mock_service.sync_playlist.assert_called_once()
 
 
 @pytest.mark.django_db
@@ -308,12 +310,10 @@ class TestPlaylistAPIEndpoints:
             username="api_user",
             email="api@test.com",
             password="test123",
-            is_spotify_connected=True
+            is_spotify_connected=True,
         )
         account = SocialAccount.objects.create(
-            user=user,
-            provider="spotify",
-            uid="spotify_789"
+            user=user, provider="spotify", uid="spotify_789"
         )
         SocialToken.objects.create(
             account=account,
@@ -364,7 +364,9 @@ class TestPlaylistAPIEndpoints:
     def test_get_playlist_details(self, client, user_with_spotify, sample_playlist):
         """Test obteniendo detalles de una playlist."""
         client.force_login(user_with_spotify)
-        response = client.get(f"/api/interactions/playlists/{sample_playlist.spotify_id}/")
+        response = client.get(
+            f"/api/interactions/playlists/{sample_playlist.spotify_id}/"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -372,8 +374,9 @@ class TestPlaylistAPIEndpoints:
         assert data["tracks_count"] == 3
 
     @patch("apps.interactions.views.playlist_api.SpotifyMusicService")
-    def test_sync_playlist_to_spotify_endpoint(self, mock_spotify_service, client,
-                                               user_with_spotify, sample_playlist):
+    def test_sync_playlist_to_spotify_endpoint(
+        self, mock_spotify_service, client, user_with_spotify, sample_playlist
+    ):
         """Test sincronizando playlist por API."""
         mock_service = MagicMock()
         mock_spotify_service.return_value = mock_service
@@ -381,7 +384,9 @@ class TestPlaylistAPIEndpoints:
         mock_service.create_playlist.return_value = {
             "id": "new_spotify_id",
             "uri": "spotify:playlist:new_spotify_id",
-            "external_urls": {"spotify": "https://open.spotify.com/playlist/new_spotify_id"},
+            "external_urls": {
+                "spotify": "https://open.spotify.com/playlist/new_spotify_id"
+            },
         }
         mock_service.add_tracks_to_playlist.return_value = True
 
@@ -396,7 +401,9 @@ class TestPlaylistAPIEndpoints:
         assert data["spotify_id"] == "new_spotify_id"
 
     @patch("apps.interactions.views.playlist_api.SpotifyMusicService")
-    def test_sync_tracks_endpoint(self, mock_spotify_service, client, user_with_spotify):
+    def test_sync_tracks_endpoint(
+        self, mock_spotify_service, client, user_with_spotify
+    ):
         """Test sincronizando tracks por API."""
         mock_service = MagicMock()
         mock_spotify_service.return_value = mock_service
@@ -419,8 +426,7 @@ class TestPlaylistAPIEndpoints:
 
         client.force_login(user_with_spotify)
         response = client.post(
-            "/api/interactions/tracks/sync/",
-            {"source": "liked", "limit": 50}
+            "/api/interactions/tracks/sync/", {"source": "liked", "limit": 50}
         )
 
         assert response.status_code == 200

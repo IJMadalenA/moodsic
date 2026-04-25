@@ -102,8 +102,12 @@ class TestPlaylistGenerationServiceScoring:
             "temperature": 28,
         }
 
-        history_score = service._score_track(history_track, weather_context, user_history)
-        context_score = service._score_track(context_track, weather_context, user_history)
+        history_score = service._score_track(
+            history_track, weather_context, user_history
+        )
+        context_score = service._score_track(
+            context_track, weather_context, user_history
+        )
 
         assert context_score > history_score
 
@@ -125,8 +129,12 @@ class TestPlaylistGenerationServiceScoring:
             "temperature": 28,
         }
 
-        history_score = service._score_track(history_track, weather_context, user_history)
-        context_score = service._score_track(context_track, weather_context, user_history)
+        history_score = service._score_track(
+            history_track, weather_context, user_history
+        )
+        context_score = service._score_track(
+            context_track, weather_context, user_history
+        )
 
         assert history_score > context_score
 
@@ -146,16 +154,17 @@ class TestPlaylistGenerationServiceScoring:
         mock_instance.client = object()
         mock_instance.get_user_liked_tracks.return_value = [
             {
-                "id": "remote_track_1",
-                "name": "Remote Track 1",
-                "artists": ["Remote Artist"],
-                "album": "Remote Album",
-                "album_id": "remote_album_1",
-                "duration_ms": 200000,
-                "explicit": False,
-                "popularity": 77,
-                "uri": "spotify:track:remote_track_1",
-                "preview_url": "",
+                "track": {
+                    "id": "remote_track_1",
+                    "name": "Remote Track 1",
+                    "artists": [{"id": "remote_artist_1", "name": "Remote Artist"}],
+                    "album": {"id": "remote_album_1", "name": "Remote Album"},
+                    "duration_ms": 200000,
+                    "explicit": False,
+                    "popularity": 77,
+                    "uri": "spotify:track:remote_track_1",
+                    "preview_url": "",
+                }
             }
         ]
         mock_instance.get_top_tracks.return_value = []

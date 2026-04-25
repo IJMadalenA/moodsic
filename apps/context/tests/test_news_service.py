@@ -32,7 +32,9 @@ def test_fetch_and_store_news(mock_get):
     }
     mock_get.return_value = mock_response
 
-    records = NewsService.fetch_and_store_news(query="music", language="en", page_size=5)
+    records = NewsService.fetch_and_store_news(
+        query="music", language="en", page_size=5
+    )
 
     assert len(records) == 2
     assert NewsContext.objects.count() == 2

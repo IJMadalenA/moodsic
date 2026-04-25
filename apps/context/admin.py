@@ -10,6 +10,7 @@ class WeatherContextAdmin(ModelAdmin):
     list_filter = ("main_status", "country", "timestamp")
     search_fields = ("city__name", "description")
 
+
 @admin.register(NewsContext)
 class NewsContextAdmin(ModelAdmin):
     list_display = ("title", "source", "sentiment_label", "published_at")

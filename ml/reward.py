@@ -8,14 +8,13 @@ Calcula el reward basándose en:
 - Historico del usuario
 """
 
-
 import numpy as np
 
 
 class RewardCalculator:
     """
     Calcula el reward (recompensa) para entrenar el agente de RL.
-    
+
     El reward es una señal que guía al agente a seleccionar tracks óptimos
     basándose en el contexto actual y el feedback del usuario.
     """
@@ -30,7 +29,7 @@ class RewardCalculator:
     ):
         """
         Inicializa la función de recompensa.
-        
+
         Args:
             base_reward: Recompensa base neutral
             skip_penalty: Penalización por skip del usuario
@@ -53,16 +52,16 @@ class RewardCalculator:
     ) -> float:
         """
         Calcula el reward total basándose en múltiples factores.
-        
+
         Args:
             user_feedback: Feedback del usuario ('skip', 'completed', None)
             weather_context: Diccionario con datos del clima
             track_audio_features: Diccionario con características de audio del track
             user_history: Diccionario con el historico del usuario
-            
+
         Returns:
             float: Valor de recompensa entre -1.0 y 2.0+
-            
+
         Examples:
             >>> calculator = RewardCalculator()
             >>> # Completar una canción en clima favorable
@@ -102,7 +101,7 @@ class RewardCalculator:
     def _calculate_feedback_reward(self, user_feedback: str | None) -> float:
         """
         Calcula la recompensa basada en el feedback del usuario.
-        
+
         - skip: penalización fuerte
         - completed: bonificación
         - None/no_action: neutral
@@ -120,7 +119,7 @@ class RewardCalculator:
     def _calculate_context_reward(self, weather_context: dict) -> float:
         """
         Calcula bonificación basada en el contexto del clima.
-        
+
         La idea es que ciertos tipos de música van mejor con cierto clima.
         Por ejemplo:
         - Música energética (danceability alta) → clima soleado, energético
@@ -154,7 +153,7 @@ class RewardCalculator:
     def _calculate_audio_feature_reward(self, audio_features: dict) -> float:
         """
         Calcula bonificación basada en las características de audio del track.
-        
+
         Favorece tracks con features balanceadas (ni demasiado extremos).
         """
         reward = 0.0
@@ -196,7 +195,7 @@ class RewardCalculator:
     ) -> float:
         """
         Calcula bonificación basada en la consistencia con preferencias del usuario.
-        
+
         Si el usuario típicamente le gustan tracks con ciertas características,
         un track similar debería recibir reward positivo.
         """
@@ -239,15 +238,17 @@ class RewardCalculator:
 
         return reward
 
-    def normalize_reward(self, reward: float, min_val: float = -2.0, max_val: float = 2.0) -> float:
+    def normalize_reward(
+        self, reward: float, min_val: float = -2.0, max_val: float = 2.0
+    ) -> float:
         """
         Normaliza el reward a un rango específico usando clipping.
-        
+
         Args:
             reward: Valor bruto de recompensa
             min_val: Valor mínimo del rango
             max_val: Valor máximo del rango
-            
+
         Returns:
             float: Reward normalizado en el rango [min_val, max_val]
         """
@@ -261,10 +262,10 @@ _reward_calculator_instance = None
 def get_reward_calculator(**kwargs) -> RewardCalculator:
     """
     Obtiene o crea la instancia global de RewardCalculator.
-    
+
     Args:
         **kwargs: Parámetros para inicializar RewardCalculator
-        
+
     Returns:
         RewardCalculator: Instancia global
     """

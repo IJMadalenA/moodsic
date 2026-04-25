@@ -84,7 +84,9 @@ class Command(BaseCommand):
             )
             created += 1
 
-        self.stdout.write(self.style.SUCCESS(f"Created {created} synthetic interactions."))
+        self.stdout.write(
+            self.style.SUCCESS(f"Created {created} synthetic interactions.")
+        )
 
     @staticmethod
     def _ensure_users(count: int):

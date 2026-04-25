@@ -24,7 +24,7 @@ class TestRewardServiceExtended:
             name="Reward Track",
             duration_ms=200000,
             track_number=1,
-            uri="spotify:track:reward_1"
+            uri="spotify:track:reward_1",
         )
 
     def test_calculate_interaction_reward_with_news(self, reward_service, user, track):
@@ -34,21 +34,21 @@ class TestRewardServiceExtended:
             sentiment_score=0.8,
             is_breaking=True,
             source="Test Source",
-            url="http://news1.com"
+            url="http://news1.com",
         )
         news2 = NewsContext.objects.create(
             title="News 2",
             sentiment_score=-0.4,
             is_breaking=False,
             source="Test Source",
-            url="http://news2.com"
+            url="http://news2.com",
         )
 
         reward = reward_service.calculate_interaction_reward(
             user_feedback="completed",
             user=user,
             track=track,
-            news_ids=[news1.id, news2.id]
+            news_ids=[news1.id, news2.id],
         )
 
         assert isinstance(reward, float)
@@ -71,23 +71,27 @@ class TestRewardServiceExtended:
         assert features["energy"] == 0.5
         assert features["danceability"] == 0.5
 
-    def test_user_history_with_interactions_missing_audio_features(self, reward_service, user, track):
+    def test_user_history_with_interactions_missing_audio_features(
+        self, reward_service, user, track
+    ):
         # Crear interacción para un track sin audio features
         Interaction.objects.create(
             user=user,
             track=track,
             feedback="completed",
             play_duration=200,
-            track_duration=200
+            track_duration=200,
         )
 
         history = reward_service._get_user_history(user)
         assert history["skip_rate"] == 0.0
-        assert history["avg_energy"] == 0.5 # Default because no audio features were found
+        assert (
+            history["avg_energy"] == 0.5
+        )  # Default because no audio features were found
 
     def test_user_history_with_skips(self, reward_service, user, track):
         # Track con audio features
-        af = TrackAudioFeatures.objects.create(
+        TrackAudioFeatures.objects.create(
             track=track,
             energy=0.8,
             danceability=0.7,
@@ -100,7 +104,7 @@ class TestRewardServiceExtended:
             instrumentalness=0.1,
             liveness=0.1,
             tempo=120.0,
-            time_signature=4
+            time_signature=4,
         )
 
         # Interacción skip
@@ -109,7 +113,7 @@ class TestRewardServiceExtended:
             track=track,
             feedback="skip",
             play_duration=10,
-            track_duration=200
+            track_duration=200,
         )
 
         history = reward_service._get_user_history(user)

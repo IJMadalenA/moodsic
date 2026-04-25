@@ -120,7 +120,9 @@ class Command(BaseCommand):
         # Compute deltas against the previous (older) run in the sorted list.
         for i, row in enumerate(rows):
             prev = rows[i + 1] if i + 1 < len(rows) else None
-            row["delta_accuracy"] = self._compute_delta(row.get("accuracy"), prev, "accuracy")
+            row["delta_accuracy"] = self._compute_delta(
+                row.get("accuracy"), prev, "accuracy"
+            )
             row["delta_mean_reward"] = self._compute_delta(
                 row.get("mean_reward"), prev, "mean_reward"
             )
@@ -131,7 +133,9 @@ class Command(BaseCommand):
             )
 
         scored = [r for r in rows if isinstance(r.get("composite_score"), (int, float))]
-        scored_sorted = sorted(scored, key=lambda r: float(r["composite_score"]), reverse=True)
+        scored_sorted = sorted(
+            scored, key=lambda r: float(r["composite_score"]), reverse=True
+        )
         rank_by_file = {r["file"]: idx + 1 for idx, r in enumerate(scored_sorted)}
         for row in rows:
             row["composite_rank"] = rank_by_file.get(row["file"], "N/A")
@@ -139,7 +143,9 @@ class Command(BaseCommand):
 
         table = self._build_markdown_table(rows)
         config_stats = self._compute_config_stats(rows, robustness_alpha)
-        recommendation_text = self._build_recommendation_text(config_stats, robustness_alpha)
+        recommendation_text = self._build_recommendation_text(
+            config_stats, robustness_alpha
+        )
         config_table = self._build_config_markdown_table(config_stats)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -164,7 +170,9 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"Summary written to {output_path}"))
         if csv_output_path is not None:
-            self.stdout.write(self.style.SUCCESS(f"CSV summary written to {csv_output_path}"))
+            self.stdout.write(
+                self.style.SUCCESS(f"CSV summary written to {csv_output_path}")
+            )
         self.stdout.write("\nRecommendation: " + recommendation_text)
         self.stdout.write("\n" + config_table)
         self.stdout.write("\n" + table)
@@ -224,7 +232,11 @@ class Command(BaseCommand):
 
         stats_rows: list[dict[str, Any]] = []
         for config_key, grouped_rows in grouped.items():
-            accuracies = [float(r["accuracy"]) for r in grouped_rows if isinstance(r.get("accuracy"), (int, float))]
+            accuracies = [
+                float(r["accuracy"])
+                for r in grouped_rows
+                if isinstance(r.get("accuracy"), (int, float))
+            ]
             rewards = [
                 float(r["mean_reward"])
                 for r in grouped_rows
@@ -237,7 +249,13 @@ class Command(BaseCommand):
             ]
 
             comp_mean = statistics.mean(composites) if composites else None
-            comp_std = statistics.pstdev(composites) if len(composites) > 1 else 0.0 if composites else None
+            comp_std = (
+                statistics.pstdev(composites)
+                if len(composites) > 1
+                else 0.0
+                if composites
+                else None
+            )
             robust_score = (
                 (comp_mean - robustness_alpha * comp_std)
                 if isinstance(comp_mean, float) and isinstance(comp_std, float)
@@ -249,9 +267,17 @@ class Command(BaseCommand):
                     "config_key": config_key,
                     "runs": len(grouped_rows),
                     "acc_mean": statistics.mean(accuracies) if accuracies else "N/A",
-                    "acc_std": statistics.pstdev(accuracies) if len(accuracies) > 1 else 0.0 if accuracies else "N/A",
+                    "acc_std": statistics.pstdev(accuracies)
+                    if len(accuracies) > 1
+                    else 0.0
+                    if accuracies
+                    else "N/A",
                     "reward_mean": statistics.mean(rewards) if rewards else "N/A",
-                    "reward_std": statistics.pstdev(rewards) if len(rewards) > 1 else 0.0 if rewards else "N/A",
+                    "reward_std": statistics.pstdev(rewards)
+                    if len(rewards) > 1
+                    else 0.0
+                    if rewards
+                    else "N/A",
                     "comp_mean": comp_mean if comp_mean is not None else "N/A",
                     "comp_std": comp_std if comp_std is not None else "N/A",
                     "robust_score": robust_score if robust_score is not None else "N/A",
@@ -261,7 +287,11 @@ class Command(BaseCommand):
             )
 
         stats_rows.sort(
-            key=lambda r: float(r["robust_score"]) if isinstance(r.get("robust_score"), (int, float)) else float("-inf"),
+            key=lambda r: (
+                float(r["robust_score"])
+                if isinstance(r.get("robust_score"), (int, float))
+                else float("-inf")
+            ),
             reverse=True,
         )
         return stats_rows
@@ -309,11 +339,15 @@ class Command(BaseCommand):
             )
         return header + "\n".join(body_lines)
 
-    def _compute_delta(self, current_value: Any, prev_row: dict[str, Any] | None, prev_key: str) -> str:
+    def _compute_delta(
+        self, current_value: Any, prev_row: dict[str, Any] | None, prev_key: str
+    ) -> str:
         if prev_row is None:
             return "N/A"
         prev_value = prev_row.get(prev_key)
-        if not isinstance(current_value, (int, float)) or not isinstance(prev_value, (int, float)):
+        if not isinstance(current_value, (int, float)) or not isinstance(
+            prev_value, (int, float)
+        ):
             return "N/A"
         delta = float(current_value) - float(prev_value)
         return f"{delta:+.4f}"
@@ -340,7 +374,9 @@ class Command(BaseCommand):
 
         Reward is normalized from [-2, 2] into [0, 1].
         """
-        if not isinstance(accuracy, (int, float)) or not isinstance(mean_reward, (int, float)):
+        if not isinstance(accuracy, (int, float)) or not isinstance(
+            mean_reward, (int, float)
+        ):
             return "N/A"
         normalized_reward = (float(mean_reward) + 2.0) / 4.0
         normalized_reward = max(0.0, min(1.0, normalized_reward))

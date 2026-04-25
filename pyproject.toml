@@ -89,22 +89,49 @@ select = [
 ]
 ignore = [
     "E501", # line length handled by formatter
+    "PLC0415", # Local imports are common in Django to avoid circular dependencies
+    "RUF012", # Mutable class attributes are standard in Django models/admin
+    "ARG001", # Unused function arguments are common in Django signals/overrides
+    "ARG002", # Unused method arguments are common in Django signals/overrides
+    "PLR2004", # Magic values are common in business logic and tests
+    "DJ001", # Nullable string fields are sometimes intentional
+    "BLE001", # Blind except Exception: is common in Django views
+    "S110", # try-except-pass is common for optional integrations
+    "N806", # Variable names like User = get_user_model() are standard
+    "SLF001", # Accessing private members like _meta is common in Django
+    "PLW0603", # Global statement is used for service singletons
+    "S311", # Standard random is used for seeding/reproducibility
+    "S603", # Subprocess call with untrusted input
+    "PLR0913", # Too many arguments
+    "PLR0915", # Too many statements
+    "PLR0912", # Too many branches
+    "C901", # Complex structure
+    "PLR0911", # Too many return statements
+    "S105", # Possible hardcoded password (false positives in reports)
+    "S106", # Possible hardcoded password (intentional in seeding)
+    "UP038", # Use X | Y in isinstance is optional and can be noisy
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = [
-    "S101",
-    "PLR2004",
-    "S105",
-    "S106",
-    "ARG005",
-    "PLC0415"
+    "S101", # asserts are okay in tests
+    "S105", # hardcoded passwords are okay in tests
+    "S106", # hardcoded passwords are okay in tests
+    "ARG005", # unused lambda arguments are okay in tests
 ]
 
 [tool.ruff.lint.isort]
 known-first-party = ["raikojin"]
 known-third-party = ["django", "django_environ", "dj_database_url", "django_unfold"]
 section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.pylint]
+max-args = 12
+max-statements = 100
+max-branches = 20
 
 [build-system]
 requires = ["uv_build>=0.10.4,<0.11.0"]

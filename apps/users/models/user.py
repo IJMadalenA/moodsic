@@ -5,9 +5,9 @@ from django.db import models
 class User(AbstractUser):
     """
     Modelo de Usuario personalizado para Moodsic.
-    
-    Heredamos de AbstractUser para mantener las funcionalidades estándar de Django 
-    (password hashing, permisos, etc.) pero extendemos el modelo para almacenar 
+
+    Heredamos de AbstractUser para mantener las funcionalidades estándar de Django
+    (password hashing, permisos, etc.) pero extendemos el modelo para almacenar
     la vinculación con la API de Spotify y los tokens de sesión.
     """
 
@@ -18,7 +18,7 @@ class User(AbstractUser):
         blank=True,
         null=True,
         unique=True,
-        help_text="ID único proporcionado por la API de Spotify"
+        help_text="ID único proporcionado por la API de Spotify",
     )
 
     # URL de la imagen de perfil del usuario en Spotify
@@ -26,13 +26,13 @@ class User(AbstractUser):
         max_length=500,
         blank=True,
         default="",
-        help_text="URL de la imagen de perfil de Spotify"
+        help_text="URL de la imagen de perfil de Spotify",
     )
 
     # Flag booleano para comprobaciones rápidas de estado de conexión en el frontend
     is_spotify_connected = models.BooleanField(
         default=False,
-        help_text="Indica si el usuario ha completado el flujo de OAuth exitosamente"
+        help_text="Indica si el usuario ha completado el flujo de OAuth exitosamente",
     )
 
     # --- CAMPOS DE TOKEN OAUTH ---
@@ -40,9 +40,7 @@ class User(AbstractUser):
 
     # El Access Token es volátil (dura 1 hora). Se guarda como TextField por seguridad en longitud.
     access_token = models.TextField(
-        blank=True,
-        null=True,
-        help_text="Token de acceso para llamadas a la API"
+        blank=True, null=True, help_text="Token de acceso para llamadas a la API"
     )
 
     # El Refresh Token permite obtener un nuevo access_token cuando el anterior expira.
@@ -50,7 +48,7 @@ class User(AbstractUser):
     refresh_token = models.TextField(
         blank=True,
         null=True,
-        help_text="Token para refrescar la sesión sin pedir login al usuario"
+        help_text="Token para refrescar la sesión sin pedir login al usuario",
     )
 
     # Almacenamos la fecha de expiración para validar si el token es vigente
@@ -58,7 +56,7 @@ class User(AbstractUser):
     token_expires_at = models.DateTimeField(
         blank=True,
         null=True,
-        help_text="Momento exacto en el que el access_token deja de ser válido"
+        help_text="Momento exacto en el que el access_token deja de ser válido",
     )
 
     class Meta:

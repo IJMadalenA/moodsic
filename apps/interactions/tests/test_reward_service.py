@@ -10,7 +10,9 @@ User = get_user_model()
 @pytest.mark.django_db
 class TestRewardService:
     def _build_track(self, suffix: str = "1") -> Track:
-        album = Album.objects.create(spotify_id=f"album_{suffix}", name=f"Album {suffix}")
+        album = Album.objects.create(
+            spotify_id=f"album_{suffix}", name=f"Album {suffix}"
+        )
         artist = Artist.objects.create(
             spotify_id=f"artist_{suffix}",
             name=f"Artist {suffix}",
@@ -30,7 +32,9 @@ class TestRewardService:
         return track
 
     def test_calculate_interaction_reward_returns_float(self):
-        user = User.objects.create_user("reward_user", "reward@example.com", "pass12345")
+        user = User.objects.create_user(
+            "reward_user", "reward@example.com", "pass12345"
+        )
         track = self._build_track("float")
         service = RewardService()
 
@@ -44,7 +48,9 @@ class TestRewardService:
         assert -2.0 <= reward <= 2.0
 
     def test_skip_feedback_penalizes_more_than_completed(self):
-        user = User.objects.create_user("reward_user2", "reward2@example.com", "pass12345")
+        user = User.objects.create_user(
+            "reward_user2", "reward2@example.com", "pass12345"
+        )
         track = self._build_track("compare")
         service = RewardService()
 

@@ -10,7 +10,9 @@ from apps.users.models.user import User
 class TestSpotifyServiceExtended:
     @pytest.fixture
     def user(self):
-        return User.objects.create_user(username="spotify_ext", email="spotify_ext@test.com")
+        return User.objects.create_user(
+            username="spotify_ext", email="spotify_ext@test.com"
+        )
 
     @pytest.fixture
     def service(self, user):
@@ -52,7 +54,9 @@ class TestSpotifyServiceExtended:
         mock_spotify.return_value = mock_instance
         service.client = mock_instance
 
-        mock_instance.playlist_tracks.return_value = {"items": [{"track": {"id": "t1", "name": "T1"}}]}
+        mock_instance.playlist_tracks.return_value = {
+            "items": [{"track": {"id": "t1", "name": "T1"}}]
+        }
         tracks = service.get_playlist_tracks("spotify:playlist:123")
         assert len(tracks) == 1
         assert tracks[0]["name"] == "T1"
@@ -63,7 +67,9 @@ class TestSpotifyServiceExtended:
         mock_spotify.return_value = mock_instance
         service.client = mock_instance
 
-        mock_instance.current_user_saved_tracks.return_value = {"items": [{"track": {"id": "t1"}}]}
+        mock_instance.current_user_saved_tracks.return_value = {
+            "items": [{"track": {"id": "t1"}}]
+        }
         tracks = service.get_user_liked_tracks()
         assert len(tracks) == 1
 

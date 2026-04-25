@@ -10,6 +10,7 @@ from apps.music.services.spotify_music_service import SpotifyMusicService
 
 logger = logging.getLogger(__name__)
 
+
 def ensure_default_city():
     """
     Verifica si hay ciudades en la DB. Si no, crea una por defecto (Madrid).
@@ -23,9 +24,10 @@ def ensure_default_city():
         city, _ = City.objects.get_or_create(
             name="Madrid",
             country=country,
-            defaults={"latitude": 40.4168, "longitude": -3.7038}
+            defaults={"latitude": 40.4168, "longitude": -3.7038},
         )
     return city
+
 
 @receiver(user_logged_in)
 def automate_context_on_login(sender, request, user, **kwargs):
@@ -60,7 +62,9 @@ def automate_context_on_login(sender, request, user, **kwargs):
             sp_service.sync_user_top_tracks()
             logger.info("✅ Música del usuario sincronizada.")
         else:
-            logger.warning(f"⚠️ No se pudo conectar con Spotify para {user.username} (¿Token faltante?)")
+            logger.warning(
+                f"⚠️ No se pudo conectar con Spotify para {user.username} (¿Token faltante?)"
+            )
 
     except Exception as e:
         logger.error(f"❌ Error automático en Música: {e}")

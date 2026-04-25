@@ -9,6 +9,7 @@ from apps.context.services.weather_service import WeatherService
 
 logger = logging.getLogger(__name__)
 
+
 @receiver(user_logged_in)
 def automate_context_on_login(sender, request, user, **kwargs):
     """
@@ -32,7 +33,9 @@ def automate_context_on_login(sender, request, user, **kwargs):
             WeatherService.fetch_and_store_weather(city)
             logger.info(f"✅ Clima para {city.name} actualizado.")
         else:
-            logger.warning("⚠️ No se encontró ninguna ciudad en la DB. El clima no se cargó.")
+            logger.warning(
+                "⚠️ No se encontró ninguna ciudad en la DB. El clima no se cargó."
+            )
 
     except Exception as e:
         logger.error(f"❌ Error cargando clima: {e}")

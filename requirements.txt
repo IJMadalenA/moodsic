@@ -1,50 +1,20 @@
+black
 # ==========================
 # Django Core
 # ==========================
 Django>=4.2,<5.0
-djangorestframework
+django-allauth
+django-cities-light
+django-countries
+django-environ
 django-ninja
 
 # ==========================
 # Django Extensions
 # ==========================
 django-unfold
-django-allauth
-django-countries
-django-cities-light
-
-# ==========================
-# Database
-# ==========================
-psycopg[binary]
-psycopg2-binary
-redis
-
-# ==========================
-# Environment & Config
-# ==========================
-python-dotenv
-django-environ
-
-# ==========================
-# HTTP / APIs
-# ==========================
-requests
+djangorestframework
 httpx
-
-# ==========================
-# Spotify Integration
-# ==========================
-spotipy
-
-# ==========================
-# Machine Learning
-# ==========================
-tensorflow
-numpy
-pandas
-scikit-learn
-torch
 
 # ==========================
 # Data Processing
@@ -55,10 +25,40 @@ joblib
 # Dashboard / Visualization
 # ==========================
 matplotlib
+numpy
+pandas
 plotly
+psycopg2-binary
+
+# ==========================
+# Database
+# ==========================
+psycopg[binary]
+
+# ==========================
+# Environment & Config
+# ==========================
+python-dotenv
+redis
+
+# ==========================
+# HTTP / APIs
+# ==========================
+requests
 
 # ==========================
 # Utilities
 # ==========================
 ruff
-black
+scikit-learn
+
+# ==========================
+# Spotify Integration
+# ==========================
+spotipy
+
+# ==========================
+# Machine Learning
+# ==========================
+tensorflow
+torch

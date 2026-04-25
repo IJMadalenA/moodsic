@@ -7,4 +7,3 @@ INTALAR TODO LO NECESARIO
 
 LEVANTAR
     - uv run manage.py runserver
-

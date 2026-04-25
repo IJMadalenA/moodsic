@@ -146,7 +146,13 @@ class TestInteractionModel:
 
     def test_interaction_feedback_choices(self, user, track, weather_context):
         """Test de opciones válidas de feedback."""
-        valid_feedbacks = ["completed", "skip", "skip_immediate", "replay", "added_to_playlist"]
+        valid_feedbacks = [
+            "completed",
+            "skip",
+            "skip_immediate",
+            "replay",
+            "added_to_playlist",
+        ]
 
         for feedback in valid_feedbacks:
             interaction = Interaction.objects.create(
@@ -218,7 +224,7 @@ class TestInteractionSessionModel:
         session = InteractionSession.objects.create(user=user)
 
         # Crear varias interacciones
-        for i, feedback in enumerate(["completed", "completed", "skip", "replay"]):
+        for _i, feedback in enumerate(["completed", "completed", "skip", "replay"]):
             Interaction.objects.create(
                 user=user,
                 track=track,
@@ -282,7 +288,9 @@ class TestInteractionRelationships:
         track_interactions = Interaction.objects.filter(track=track)
         assert interaction in track_interactions
 
-    def test_interaction_session_relationship(self, user, track, weather_context, session):
+    def test_interaction_session_relationship(
+        self, user, track, weather_context, session
+    ):
         """Test de relación sesión-interacción."""
         interaction = Interaction.objects.create(
             user=user,

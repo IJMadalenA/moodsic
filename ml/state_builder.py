@@ -7,7 +7,6 @@ incluyendo: clima, noticias, características de audio, historico del usuario.
 La salida es un vector normalizado que se usa como entrada al agente RL.
 """
 
-
 import numpy as np
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -18,13 +17,13 @@ User = get_user_model()
 class StateBuilder:
     """
     Construye vectores de estado normalizados para el agente RL.
-    
+
     Un estado representa toda la información relevante en un momento dado:
     - Contexto del clima
     - Noticias recientes
     - Historico del usuario
     - Características de audio del track anterior
-    
+
     El vector de estado es normalizado a [0, 1] para mejor convergencia del RL.
     """
 
@@ -38,7 +37,7 @@ class StateBuilder:
     ):
         """
         Inicializa el State Builder.
-        
+
         Args:
             state_dim: Dimensión total del vector de estado
             weather_features: Número de features de clima
@@ -74,16 +73,16 @@ class StateBuilder:
     ) -> np.ndarray:
         """
         Construye el vector de estado completo.
-        
+
         Args:
             user: Usuario para el que se construye el estado
             weather_context: Diccionario con datos del clima
             current_track: Diccionario con características del track actual
             time_of_day: 'morning', 'afternoon', 'evening', 'night'
-            
+
         Returns:
             np.ndarray: Vector de estado normalizado de shape (state_dim,)
-            
+
         Example:
             >>> builder = StateBuilder()
             >>> weather = {'temperature': 22, 'humidity': 60, 'wind_speed': 5}
@@ -126,9 +125,9 @@ class StateBuilder:
     def _extract_weather_features(self, weather_context: dict | None) -> np.ndarray:
         """
         Extrae features normalizadas del contexto climático.
-        
+
         Returns un vector de 10 features:
-        [temp, feels_like, humidity, wind_speed, pressure, visibility, 
+        [temp, feels_like, humidity, wind_speed, pressure, visibility,
          clouds, rain_prob, is_raining, is_snowing]
         """
         features = []
@@ -163,9 +162,7 @@ class StateBuilder:
 
         # Visibilidad
         visibility = weather_context.get("visibility", 10000)
-        norm_visibility = self._normalize(
-            visibility, self.normalizers["visibility"]
-        )
+        norm_visibility = self._normalize(visibility, self.normalizers["visibility"])
         features.append(norm_visibility)
 
         # Nubosidad
@@ -187,12 +184,12 @@ class StateBuilder:
         is_snowing = float(weather_context.get("main_status", "").lower() == "snow")
         features.append(is_snowing)
 
-        return np.array(features[:self.weather_features], dtype=np.float32)
+        return np.array(features[: self.weather_features], dtype=np.float32)
 
     def _extract_audio_features(self, current_track: dict | None) -> np.ndarray:
         """
         Extrae features de audio normalizadas del track actual.
-        
+
         Returns un vector de 12 features:
         [energy, danceability, valence, acousticness, instrumentalness,
          liveness, loudness, tempo, speechiness, key, mode, time_signature]
@@ -246,18 +243,17 @@ class StateBuilder:
         norm_time_sig = float(time_sig) / 7.0
         features.append(np.clip(norm_time_sig, 0.0, 1.0))
 
-        return np.array(features[:self.audio_features_dim], dtype=np.float32)
+        return np.array(features[: self.audio_features_dim], dtype=np.float32)
 
     def _extract_user_history_features(self, user: "User") -> np.ndarray:
         """
         Extrae features de historico del usuario.
-        
+
         Returns un vector de 8 features relacionadas al comportamiento del usuario.
         """
         features = []
 
         try:
-
             # Skip rate (proporción de tracks que skipped)
             # Esto requeriría un modelo Interaction que aún no existe
             skip_rate = 0.3  # Default
@@ -272,18 +268,20 @@ class StateBuilder:
             features.extend([0.3, 0.7])
 
         # Features adicionales del usuario
-        features.extend([
-            0.5,  # Energy preference (default neutral)
-            0.6,  # Danceability preference
-            0.5,  # Valence preference
-            0.4,  # Acousticness preference
-            0.2,  # Instrumentalness preference (prefer más vocals)
-            float(user.is_spotify_connected),  # ¿Está conectado a Spotify?
-            0.5,  # Engagement score (default neutral)
-            0.6,  # Diversity preference (cuánto varía su gusto)
-        ])
+        features.extend(
+            [
+                0.5,  # Energy preference (default neutral)
+                0.6,  # Danceability preference
+                0.5,  # Valence preference
+                0.4,  # Acousticness preference
+                0.2,  # Instrumentalness preference (prefer más vocals)
+                float(user.is_spotify_connected),  # ¿Está conectado a Spotify?
+                0.5,  # Engagement score (default neutral)
+                0.6,  # Diversity preference (cuánto varía su gusto)
+            ]
+        )
 
-        return np.array(features[:self.user_history_dim], dtype=np.float32)
+        return np.array(features[: self.user_history_dim], dtype=np.float32)
 
     def _extract_context_features(
         self,
@@ -292,7 +290,7 @@ class StateBuilder:
     ) -> np.ndarray:
         """
         Extrae features contextuales: hora del día, día de la semana, temporada.
-        
+
         Returns un vector de 15 features.
         """
         features = []
@@ -342,7 +340,7 @@ class StateBuilder:
         is_peak_hour = float(hour in [8, 9, 17, 18, 19])  # Horas común de peak
         features.append(is_peak_hour)
 
-        return np.array(features[:self.context_embedding_dim], dtype=np.float32)
+        return np.array(features[: self.context_embedding_dim], dtype=np.float32)
 
     @staticmethod
     def _extract_news_features(news_contexts: list[dict] | None) -> list[float]:
@@ -351,8 +349,7 @@ class StateBuilder:
             return [0.5, 0.0, 0.0]
 
         sentiment_values = [
-            float(item.get("sentiment_score", 0.0))
-            for item in news_contexts
+            float(item.get("sentiment_score", 0.0)) for item in news_contexts
         ]
         avg_sentiment = sum(sentiment_values) / len(sentiment_values)
         # Map [-1, 1] sentiment into [0, 1]
@@ -369,11 +366,11 @@ class StateBuilder:
     def _normalize(value: float, range_dict: dict) -> float:
         """
         Normaliza un valor al rango [0, 1] usando min-max scaling.
-        
+
         Args:
             value: Valor a normalizar
             range_dict: Dict con 'min_val' y 'max_val'
-            
+
         Returns:
             float: Valor normalizado en [0, 1]
         """
@@ -390,7 +387,7 @@ class StateBuilder:
     def _encode_time_of_day(time_of_day: str | None) -> list[float]:
         """
         One-hot encoding de la hora del día.
-        
+
         Returns: [is_morning, is_afternoon, is_evening, is_night]
         """
         encoding = [0.0, 0.0, 0.0, 0.0]
@@ -434,7 +431,7 @@ class StateBuilder:
     def _encode_season(season: str) -> list[float]:
         """
         One-hot encoding de la estación.
-        
+
         Returns: [is_winter, is_spring, is_summer, is_autumn]
         """
         seasons = ["winter", "spring", "summer", "autumn"]

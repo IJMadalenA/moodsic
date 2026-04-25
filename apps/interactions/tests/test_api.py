@@ -141,19 +141,30 @@ class TestPlaylistAPI:
         # Puede retornar 405 (method not allowed) o 401/403 (unauthorized)
         assert response.status_code in [401, 403, 404, 405]
 
-    def test_generate_playlist_invalid_weather_id_returns_404(self, client, user, track):
+    def test_generate_playlist_invalid_weather_id_returns_404(
+        self, client, user, track
+    ):
         """El endpoint debe rechazar weather_id inválido."""
         client.force_login(user)
         response = client.post(
             "/api/interactions/playlists/generate/",
-            data=json.dumps({"name": "Test Playlist", "count": 1, "weather_id": 999, "use_context": True}),
+            data=json.dumps(
+                {
+                    "name": "Test Playlist",
+                    "count": 1,
+                    "weather_id": 999,
+                    "use_context": True,
+                }
+            ),
             content_type="application/json",
         )
 
         assert response.status_code == 404
         assert response.json().get("error") == "Weather context no encontrado"
 
-    def test_generate_playlist_with_valid_weather_id_returns_session(self, client, user, track):
+    def test_generate_playlist_with_valid_weather_id_returns_session(
+        self, client, user, track
+    ):
         """El endpoint debe generar playlist con weather_id válido y devolver session_id."""
         from apps.context.models import WeatherContext
 
@@ -177,7 +188,14 @@ class TestPlaylistAPI:
         client.force_login(user)
         response = client.post(
             "/api/interactions/playlists/generate/",
-            data=json.dumps({"name": "Morning Playlist", "count": 1, "weather_id": weather.id, "use_context": True}),
+            data=json.dumps(
+                {
+                    "name": "Morning Playlist",
+                    "count": 1,
+                    "weather_id": weather.id,
+                    "use_context": True,
+                }
+            ),
             content_type="application/json",
         )
 
@@ -210,12 +228,16 @@ class TestPlaylistAPI:
 
         assert response.status_code == 422
 
-    def test_generate_playlist_caps_requested_count_with_warning(self, client, user, track):
+    def test_generate_playlist_caps_requested_count_with_warning(
+        self, client, user, track
+    ):
         """Si se piden demasiadas canciones, la API debe caparlo y avisarlo."""
         client.force_login(user)
         response = client.post(
             "/api/interactions/playlists/generate/",
-            data=json.dumps({"name": "Big Playlist", "count": 150, "use_context": False}),
+            data=json.dumps(
+                {"name": "Big Playlist", "count": 150, "use_context": False}
+            ),
             content_type="application/json",
         )
 
@@ -224,7 +246,9 @@ class TestPlaylistAPI:
         assert "warnings" in payload
         assert any("100" in warning for warning in payload["warnings"])
 
-    def test_create_interaction_rejects_invalid_feedback_value(self, client, user, track):
+    def test_create_interaction_rejects_invalid_feedback_value(
+        self, client, user, track
+    ):
         """feedback inválido debe ser rechazado por el schema."""
         client.force_login(user)
         response = client.post(
@@ -248,7 +272,10 @@ class TestPlaylistAPI:
 
         assert response.status_code == 200
         assert "MoodSic" in response.content.decode()
-        assert "Demo" in response.content.decode() or "dashboard" in response.content.decode().lower()
+        assert (
+            "Demo" in response.content.decode()
+            or "dashboard" in response.content.decode().lower()
+        )
 
 
 @pytest.mark.django_db
@@ -268,7 +295,9 @@ class TestDashboardAPI:
 
         assert response.status_code == 403
 
-    def test_dashboard_metrics_returns_user_growth(self, client, admin_user, user, track):
+    def test_dashboard_metrics_returns_user_growth(
+        self, client, admin_user, user, track
+    ):
         """El dashboard debe retornar métricas y crecimiento de usuarios."""
         from django.utils import timezone
 

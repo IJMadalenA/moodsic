@@ -2,6 +2,8 @@
 Tests para el Agente DQN.
 """
 
+from collections import deque
+
 import numpy as np
 import pytest
 
@@ -51,9 +53,7 @@ class TestDQNAgent:
         state = np.random.randn(agent.state_dim).astype(np.float32)
         available = [0, 2, 4]
 
-        action = agent.select_action(
-            state, available_actions=available, training=False
-        )
+        action = agent.select_action(state, available_actions=available, training=False)
 
         assert action in available
 
@@ -68,7 +68,7 @@ class TestDQNAgent:
 
     def test_memory_buffer_limit(self, agent):
         """Test del límite del replay buffer."""
-        for i in range(agent.memory_size + 100):
+        for _i in range(agent.memory_size + 100):
             state = np.random.randn(agent.state_dim).astype(np.float32)
             next_state = np.random.randn(agent.state_dim).astype(np.float32)
             agent.remember(state, 0, 1.0, next_state, False)
@@ -100,7 +100,9 @@ class TestDQNAgent:
         agent.update_target_network(update_frequency=1)
         updated_weights = agent.target_network.get_weights()
 
-        for i, (initial, updated) in enumerate(zip(initial_weights, updated_weights)):
+        for _i, (initial, updated) in enumerate(
+            zip(initial_weights, updated_weights, strict=False)
+        ):
             assert np.allclose(initial, updated)
 
     def test_get_q_values(self, agent):
@@ -150,7 +152,3 @@ class TestDQNAgent:
         agent2 = get_agent(state_dim=20)  # Params ignorados si ya existe
 
         assert agent1 is agent2
-
-
-# Import deque para el test
-from collections import deque
