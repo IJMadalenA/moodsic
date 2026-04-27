@@ -16,7 +16,8 @@ from apps.interactions.schemas import (
 from apps.interactions.services.playlist_generation_service import (
     get_playlist_generation_service,
 )
-from apps.music.models import Album, Artist, Playlist, Track, TrackAudioFeatures
+from apps.music.models import Playlist
+from apps.music.services.music_data_service import MusicDataService
 from apps.music.services.playlist_creator_service import PlaylistCreatorService
 from apps.music.services.spotify_music_service import SpotifyMusicService
 
@@ -526,83 +527,19 @@ def sync_tracks_from_spotify(
                 "message": "No se encontraron tracks",
             }
 
-        # Guardar tracks
-        saved_count = 0
-        skipped_count = 0
-        artist_cache = {}
-        audio_features_data = {}
-
         # Obtener audio features si se solicita
+        audio_features_data = {}
         if save_audio_features:
             track_ids = [t.get("id") for t in tracks_data if t.get("id")]
             if track_ids:
                 audio_features_data = spotify_service.get_audio_features(track_ids)
 
-        for track_data in tracks_data:
-            try:
-                # Obtener o crear album
-                if track_data.get("album_id"):
-                    album, _ = Album.objects.get_or_create(
-                        spotify_id=track_data.get("album_id"),
-                        defaults={
-                            "name": track_data.get("album", "Unknown"),
-                            "album_type": "",
-                        },
-                    )
-                else:
-                    album = None
-
-                # Obtener o crear artistas
-                artists = []
-                for artist_name in track_data.get("artists", []):
-                    artist_key = artist_name.lower()
-                    if artist_key not in artist_cache:
-                        artist, _ = Artist.objects.get_or_create(
-                            name=artist_name,
-                            defaults={"spotify_id": f"local_{artist_key}"},
-                        )
-                        artist_cache[artist_key] = artist
-                    artists.append(artist_cache[artist_key])
-
-                # Obtener o crear track
-                track, created = Track.objects.get_or_create(
-                    spotify_id=track_data.get("id", ""),
-                    defaults={
-                        "name": track_data.get("name", "Unknown"),
-                        "album": album,
-                        "duration_ms": track_data.get("duration_ms", 0),
-                        "explicit": track_data.get("explicit", False),
-                        "popularity": track_data.get("popularity", 0),
-                        "preview_url": track_data.get("preview_url", ""),
-                        "uri": track_data.get("uri", ""),
-                        "track_number": 0,
-                    },
-                )
-
-                if artists:
-                    track.artists.add(*artists)
-
-                if created:
-                    saved_count += 1
-
-                    # Guardar audio features si están disponibles
-                    if (
-                        save_audio_features
-                        and track_data.get("id") in audio_features_data
-                    ):
-                        try:
-                            TrackAudioFeatures.objects.get_or_create(
-                                track=track,
-                                defaults=audio_features_data[track_data.get("id")],
-                            )
-                        except Exception as e:
-                            logger.warning(f"Error saving audio features: {e}")
-                else:
-                    skipped_count += 1
-
-            except Exception as e:
-                logger.error(f"Error procesando track: {e}")
-                continue
+        # Guardar tracks
+        saved_count, skipped_count = MusicDataService.persist_tracks(
+            tracks_data=tracks_data,
+            save_audio_features=save_audio_features,
+            audio_features_data=audio_features_data,
+        )
 
         logger.info(
             f"Sincronización completada: {saved_count} nuevos, {skipped_count} existentes"

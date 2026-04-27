@@ -73,6 +73,21 @@ class MoodsicSocialAccountAdapter(DefaultSocialAccountAdapter):
                 token_data.account = social_account
                 token_data.save()
 
+            # 5. SYNC INITIAL DATA
+            try:
+                from apps.music.services.spotify_music_service import (
+                    SpotifyMusicService,
+                )
+
+                sp_service = SpotifyMusicService(user)
+                if sp_service.client:
+                    logger.info(f"🎵 Sincronización inicial para {user.username}...")
+                    sp_service.sync_user_top_tracks(limit=20)
+            except Exception as e:
+                logger.error(
+                    f"Error en sincronización inicial para {user.username}: {e}"
+                )
+
             return user
 
         except Exception as e:

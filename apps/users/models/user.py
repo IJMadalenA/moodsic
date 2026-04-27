@@ -29,6 +29,15 @@ class User(AbstractUser):
         help_text="URL de la imagen de perfil de Spotify",
     )
 
+    # Ciudad vinculada al usuario para clima y contexto
+    city = models.ForeignKey(
+        "cities_light.City",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Ciudad preferida o actual del usuario para personalizar el contexto",
+    )
+
     # Flag booleano para comprobaciones rápidas de estado de conexión en el frontend
     is_spotify_connected = models.BooleanField(
         default=False,

@@ -9,6 +9,8 @@ from django.conf import settings
 from django.utils import timezone
 from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
 
+from apps.music.services.music_data_service import MusicDataService
+
 logger = logging.getLogger(__name__)
 
 
@@ -363,6 +365,28 @@ class SpotifyMusicService:
                     if f:
                         features_dict[f["id"]] = f
         return features_dict
+
+    def sync_user_liked_tracks(self, limit: int = 50) -> dict:
+        """
+        Fetches and persists user's liked tracks.
+        """
+        tracks_data = self.get_user_liked_tracks(limit=limit)
+        if not tracks_data:
+            return {"saved": 0, "skipped": 0}
+
+        saved, skipped = MusicDataService.persist_tracks(tracks_data)
+        return {"saved": saved, "skipped": skipped}
+
+    def sync_user_top_tracks(self, limit: int = 50) -> dict:
+        """
+        Fetches and persists user's top tracks.
+        """
+        tracks_data = self.get_top_tracks(limit=limit)
+        if not tracks_data:
+            return {"saved": 0, "skipped": 0}
+
+        saved, skipped = MusicDataService.persist_tracks(tracks_data)
+        return {"saved": saved, "skipped": skipped}
 
     @staticmethod
     def verify_api_connection():

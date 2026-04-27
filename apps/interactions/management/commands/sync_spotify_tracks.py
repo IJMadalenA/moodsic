@@ -15,7 +15,7 @@ import logging
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.music.models import Album, Artist, Track, TrackAudioFeatures
+from apps.music.services.music_data_service import MusicDataService
 from apps.music.services.spotify_music_service import SpotifyMusicService
 
 User = get_user_model()
@@ -150,93 +150,19 @@ class Command(BaseCommand):
                 self.style.SUCCESS("\n[SAVE] Guardando tracks en base de datos...")
             )
 
-            saved_count = 0
-            skipped_count = 0
-            artist_cache = {}
+            # Obtener audio features si se solicita
+            audio_features_data = None
+            if save_audio_features:
+                self.stdout.write("   [FETCH] Obteniendo características de audio...")
+                track_ids = [t.get("id") for t in tracks if t.get("id")]
+                if track_ids:
+                    audio_features_data = spotify_service.get_audio_features(track_ids)
 
-            for idx, track_data in enumerate(tracks, 1):
-                try:
-                    # Obtener o crear album
-                    album_data = track_data.get("album")
-                    if isinstance(album_data, dict):
-                        album_id = album_data.get("id")
-                        album_name = album_data.get("name", "Unknown")
-                    else:
-                        album_id = track_data.get("album_id")
-                        album_name = track_data.get("album", "Unknown")
-
-                    if album_id:
-                        album, _ = Album.objects.get_or_create(
-                            spotify_id=album_id,
-                            defaults={
-                                "name": album_name,
-                                "album_type": "",
-                            },
-                        )
-                    else:
-                        album = None
-
-                    # Obtener o crear artistas
-                    artists = []
-                    raw_artists = track_data.get("artists", [])
-                    for artist_raw in raw_artists:
-                        if isinstance(artist_raw, dict):
-                            artist_name = artist_raw.get("name", "Unknown")
-                            artist_id = artist_raw.get(
-                                "id", f"local_{artist_name.lower()}"
-                            )
-                        else:
-                            artist_name = artist_raw
-                            artist_id = f"local_{artist_name.lower()}"
-
-                        artist_key = artist_name.lower()
-                        if artist_key not in artist_cache:
-                            artist, _ = Artist.objects.get_or_create(
-                                name=artist_name,
-                                defaults={"spotify_id": artist_id},
-                            )
-                            artist_cache[artist_key] = artist
-                        artists.append(artist_cache[artist_key])
-
-                    # Obtener o crear track
-                    track, created = Track.objects.get_or_create(
-                        spotify_id=track_data.get("id", ""),
-                        defaults={
-                            "name": track_data.get("name", "Unknown"),
-                            "album": album,
-                            "duration_ms": track_data.get("duration_ms", 0),
-                            "explicit": track_data.get("explicit", False),
-                            "popularity": track_data.get("popularity", 0),
-                            "preview_url": track_data.get("preview_url", ""),
-                            "uri": track_data.get("uri", ""),
-                            "track_number": 0,
-                        },
-                    )
-
-                    # Agregar artistas al track
-                    if artists:
-                        track.artists.add(*artists)
-
-                    if created:
-                        saved_count += 1
-                        status = "[NEW]"
-                    else:
-                        skipped_count += 1
-                        status = "[EXISTS]"
-
-                    if verbose and idx % 10 == 0:
-                        self.stdout.write(
-                            f"   {status} [{idx}/{len(tracks)}] {track.name[:40]}..."
-                        )
-
-                except Exception as e:
-                    logger.error(
-                        f"Error procesando track {track_data.get('name', 'Unknown')}: {e}"
-                    )
-                    if verbose:
-                        self.stdout.write(
-                            self.style.WARNING(f"   [ERROR] {str(e)[:50]}...")
-                        )
+            saved_count, skipped_count = MusicDataService.persist_tracks(
+                tracks_data=tracks,
+                save_audio_features=save_audio_features,
+                audio_features_data=audio_features_data,
+            )
 
             self.stdout.write(
                 self.style.SUCCESS(f"\n   [OK] {saved_count} tracks nuevos guardados")
@@ -245,39 +171,6 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.NOTICE(f"   [INFO] {skipped_count} tracks ya existían")
                 )
-
-            # 3. Obtener características de audio si se solicita
-            if save_audio_features and saved_count > 0:
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        "\n[AUDIO] Obteniendo características de audio..."
-                    )
-                )
-
-                track_ids = [t.get("id") for t in tracks if t.get("id")]
-                if track_ids:
-                    audio_features = spotify_service.get_audio_features(track_ids)
-
-                    features_saved = 0
-                    for track_id, features in audio_features.items():
-                        try:
-                            track = Track.objects.get(spotify_id=track_id)
-                            TrackAudioFeatures.objects.get_or_create(
-                                track=track, defaults=features
-                            )
-                            features_saved += 1
-                        except Track.DoesNotExist:
-                            pass
-                        except Exception as e:
-                            logger.error(
-                                f"Error guardando audio features para {track_id}: {e}"
-                            )
-
-                    self.stdout.write(
-                        self.style.SUCCESS(
-                            f"   [OK] {features_saved} registros de audio features guardados"
-                        )
-                    )
 
             # 4. Mostrar resumen final
             self.stdout.write(
