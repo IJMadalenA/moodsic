@@ -234,10 +234,10 @@ UNFOLD_CONFIG = {
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    "default": env.db(
-        "DATABASE_URL",
-        default=f"postgres://{env.str('POSTGRES_USER', 'postgres')}:{env.str('POSTGRES_PASSWORD', 'postgres')}@{env.str('POSTGRES_HOST', 'localhost')}:{env.int('POSTGRES_PORT', 5432)}/{env.str('POSTGRES_DB', 'moodsic')}",
-    )
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": r"C:\Users\PC\AppData\Roaming\DBeaverData\workspace6\.metadata\sample-database-sqlite-1\Chinook.db",
+    }
 }
 
 # Optional database configuration tuning
