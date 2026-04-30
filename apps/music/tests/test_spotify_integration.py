@@ -128,23 +128,23 @@ class TestSpotifyMusicServiceExtended:
         assert tracks[0]["id"] == "top_track_1"
         assert tracks[0]["popularity"] == 90
 
+    @patch("apps.music.services.spotify_music_service.requests.post")
     @patch("apps.music.services.spotify_music_service.spotipy.Spotify")
-    def test_create_playlist(self, mock_spotify_class, user_with_spotify):
+    def test_create_playlist(self, mock_spotify_class, mock_post, user_with_spotify):
         """Test creando una playlist en Spotify."""
         mock_client = MagicMock()
         mock_spotify_class.return_value = mock_client
 
-        mock_client.current_user.return_value = {"id": "user_123"}
-        mock_client.user_playlist_create.return_value = {
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
             "id": "new_playlist_123",
             "name": "Test Playlist",
             "uri": "spotify:playlist:new_playlist_123",
             "snapshot_id": "snapshot_123",
-            "external_urls": {
-                "spotify": "https://open.spotify.com/playlist/new_playlist_123"
-            },
-            "images": [],
         }
+        mock_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_response
 
         service = SpotifyMusicService(user_with_spotify)
         playlist = service.create_playlist(
@@ -154,7 +154,7 @@ class TestSpotifyMusicServiceExtended:
         assert playlist is not None
         assert playlist["id"] == "new_playlist_123"
         assert playlist["name"] == "Test Playlist"
-        mock_client.user_playlist_create.assert_called_once()
+        mock_post.assert_called_once()
 
     @patch("apps.music.services.spotify_music_service.spotipy.Spotify")
     def test_add_tracks_to_playlist(self, mock_spotify_class, user_with_spotify):

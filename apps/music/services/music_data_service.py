@@ -96,7 +96,7 @@ class MusicDataService:
                         "duration_ms": track_data.get("duration_ms", 0),
                         "explicit": track_data.get("explicit", False),
                         "popularity": track_data.get("popularity", 0),
-                        "preview_url": track_data.get("preview_url", ""),
+                        "preview_url": track_data.get("preview_url") or "",
                         "uri": track_data.get("uri", ""),
                         "track_number": track_data.get("track_number", 0),
                     },

@@ -211,6 +211,110 @@ class SpotifyMusicService:
             ]
         return []
 
+    def get_user_liked_tracks_paginated(self, max_tracks: int = 500) -> list[dict]:
+        """
+        Fetches liked tracks with full pagination (up to max_tracks).
+        Spotify API allows max 50 per request, so we paginate automatically.
+        """
+        if not self.client:
+            return []
+
+        tracks: list[dict] = []
+        offset = 0
+        page_size = 50  # Spotify API max per request
+
+        while len(tracks) < max_tracks:
+            try:
+                remaining = max_tracks - len(tracks)
+                results = self.client.current_user_saved_tracks(
+                    limit=min(page_size, remaining), offset=offset
+                )
+                if not results:
+                    break
+
+                items = results.get("items", [])
+                if not items:
+                    break
+
+                for item in items:
+                    track = item.get("track")
+                    if track and track.get("id"):
+                        tracks.append(track)
+
+                # If this page was smaller than requested, we've reached the end
+                if len(items) < min(page_size, remaining):
+                    break
+
+                offset += len(items)
+            except Exception as e:
+                logger.error(f"Error paginating liked tracks at offset {offset}: {e}")
+                break
+
+        logger.info(f"Fetched {len(tracks)} liked tracks (paginated)")
+        return tracks
+
+    def get_recently_played(self, limit: int = 50) -> list[dict]:
+        """Gets the user's recently played tracks (max 50, Spotify API limit)."""
+        if not self.client:
+            return []
+        try:
+            results = self.client.current_user_recently_played(limit=min(limit, 50))
+            if not results:
+                return []
+            tracks = []
+            seen_ids: set[str] = set()
+            for item in results.get("items", []):
+                track = item.get("track")
+                if track and track.get("id") and track["id"] not in seen_ids:
+                    seen_ids.add(track["id"])
+                    tracks.append(track)
+            return tracks
+        except Exception as e:
+            logger.error(f"Error fetching recently played: {e}")
+            return []
+
+    def get_user_playlists(self, limit: int = 20) -> list[dict]:
+        """Gets the current user's playlists (owned or followed)."""
+        if not self.client:
+            return []
+        try:
+            results = self.client.current_user_playlists(limit=min(limit, 50))
+            return results.get("items", []) if results else []
+        except Exception as e:
+            logger.error(f"Error fetching user playlists: {e}")
+            return []
+
+    def get_tracks_from_playlist(self, playlist_id: str, limit: int = 100) -> list[dict]:
+        """Gets tracks from a specific playlist with pagination."""
+        if not self.client:
+            return []
+        tracks: list[dict] = []
+        offset = 0
+        page_size = 100
+        while len(tracks) < limit:
+            try:
+                results = self.client.playlist_tracks(
+                    playlist_id=playlist_id,
+                    limit=min(page_size, limit - len(tracks)),
+                    offset=offset,
+                )
+                if not results:
+                    break
+                items = results.get("items", [])
+                if not items:
+                    break
+                for item in items:
+                    track = item.get("track")
+                    if track and track.get("id"):
+                        tracks.append(track)
+                if len(items) < page_size:
+                    break
+                offset += len(items)
+            except Exception as e:
+                logger.error(f"Error fetching playlist {playlist_id} tracks at offset {offset}: {e}")
+                break
+        return tracks
+
     def get_top_tracks(
         self, limit: int = 20, time_range: str = "medium_term"
     ) -> list[dict]:
@@ -253,18 +357,41 @@ class SpotifyMusicService:
         collaborative: bool = False,
     ) -> dict | None:
         """Creates a new playlist."""
-        if not self.spotify_user_id:
-            logger.error("Cannot create playlist without Spotify user ID.")
+        token = self._get_valid_token()
+        if not token:
+            logger.error("Cannot create playlist without a valid Spotify token.")
             return None
 
-        return self._make_request(
-            "user_playlist_create",
-            user=self.spotify_user_id,
-            name=name,
-            public=public,
-            collaborative=collaborative,
-            description=description,
-        )
+        # Using /me/playlists is more robust than /users/{id}/playlists for OAuth users.
+        try:
+            response = requests.post(
+                "https://api.spotify.com/v1/me/playlists",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "name": name,
+                    "description": description,
+                    "public": public,
+                    "collaborative": collaborative,
+                },
+                timeout=20,
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            logger.error(
+                "Spotify API Error creating playlist via /me/playlists (HTTP %s): %s",
+                response.status_code,
+                response.text[:300],
+            )
+            if response.status_code == 401:
+                self._get_valid_token()
+            return None
+        except Exception as e:
+            logger.error("Unexpected error creating playlist: %s", e)
+            return None
 
     def add_tracks_to_playlist(self, playlist_id: str, track_uris: list[str]) -> Any:
         """Adds tracks to a playlist in batches."""

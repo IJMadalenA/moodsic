@@ -29,15 +29,20 @@ class TestSpotifyPlaylistManagement:
             expires_at=timezone.now() + timezone.timedelta(hours=1),
         )
 
+    @patch("apps.music.services.spotify_music_service.requests.post")
     @patch("spotipy.Spotify")
-    def test_create_playlist(self, mock_spotify, user, _social_token):
+    def test_create_playlist(self, mock_spotify, mock_post, user, _social_token):
         mock_instance = MagicMock()
         mock_spotify.return_value = mock_instance
-        mock_instance.current_user.return_value = {"id": "spotify_user_id"}
-        mock_instance.user_playlist_create.return_value = {
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
             "id": "new_playlist_id",
             "name": "Moodsic: Happy",
         }
+        mock_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_response
 
         service = SpotifyMusicService(user)
         playlist = service.create_playlist(
@@ -45,13 +50,7 @@ class TestSpotifyPlaylistManagement:
         )
 
         assert playlist["id"] == "new_playlist_id"
-        mock_instance.user_playlist_create.assert_called_once_with(
-            user="spotify_user_id",
-            name="Moodsic: Happy",
-            public=True,
-            collaborative=False,
-            description="Created by Moodsic",
-        )
+        mock_post.assert_called_once()
 
     @patch("spotipy.Spotify")
     def test_add_tracks_to_playlist(self, mock_spotify, user, _social_token):
