@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import datetime
 from typing import ClassVar
 
@@ -91,12 +92,47 @@ class WeatherService:
             "forecast_days": 1,
         }
 
+        timeout_seconds = int(getattr(settings, "EXTERNAL_API_TIMEOUT_SECONDS", 10))
+        retries = int(getattr(settings, "EXTERNAL_API_RETRIES", 2))
+        backoff_seconds = float(
+            getattr(settings, "EXTERNAL_API_RETRY_BACKOFF_SECONDS", 0.5)
+        )
+
         try:
-            response = requests.get(base_url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+            data = None
+            for attempt in range(retries + 1):
+                try:
+                    response = requests.get(
+                        base_url,
+                        params=params,
+                        timeout=max(2, timeout_seconds),
+                    )
+                    if response.status_code >= 500 or response.status_code == 429:
+                        raise requests.exceptions.HTTPError(response=response)
+                    response.raise_for_status()
+                    data = response.json()
+                    break
+                except requests.exceptions.RequestException:
+                    if attempt >= retries:
+                        raise
+                    time.sleep(backoff_seconds * (2**attempt))
+
+            if data is None:
+                raise requests.exceptions.RequestException(
+                    "No weather payload received from provider"
+                )
         except requests.exceptions.RequestException as e:
-            logging.getLogger(__name__).error(f"Error al consultar Open-Meteo: {e}")
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error al consultar Open-Meteo, intentando cache local: {e}")
+            city_fk = city if isinstance(city, City) else None
+            cached = (
+                WeatherContext.objects.filter(city=city_fk)
+                .order_by("-timestamp")
+                .first()
+            )
+            if cached is not None:
+                logger.info("Usando WeatherContext en cache para %s", city.name)
+                return cached
             raise
 
         current = data.get("current", {})
@@ -117,10 +153,15 @@ class WeatherService:
                 return None
 
         # Mapeo al modelo WeatherContext
+        # Only set FK fields when city is a real City model instance
+        city_fk = city if isinstance(city, City) else None
+        region_fk = city.region if city_fk else None
+        country_fk = city.country if city_fk else None
+
         weather_context = WeatherContext.objects.create(
-            city=city,
-            region=city.region,
-            country=city.country,
+            city=city_fk,
+            region=region_fk,
+            country=country_fk,
             main_status=status,
             description=description,
             icon_code=str(weather_code),

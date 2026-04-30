@@ -5,6 +5,27 @@ from apps.context.services.news_service import NewsService
 from apps.context.services.weather_service import WeatherService
 
 
+# Default cities with coordinates for when cities_light has no data
+_DEFAULT_CITIES = [
+    {"name": "Madrid", "country_code": "ES", "latitude": 40.4168, "longitude": -3.7038},
+    {"name": "Barcelona", "country_code": "ES", "latitude": 41.3851, "longitude": 2.1734},
+]
+
+
+class _StubCity:
+    """Minimal city-like object with coordinates, used as fallback when cities_light has no data."""
+
+    class _StubCountry:
+        def __init__(self, code):
+            self.code2 = code
+
+    def __init__(self, name, country_code, latitude, longitude):
+        self.name = name
+        self.country = self._StubCountry(country_code)
+        self.latitude = latitude
+        self.longitude = longitude
+
+
 class Command(BaseCommand):
     help = "Actualiza el clima y las noticias en la base de datos"
 
@@ -27,17 +48,26 @@ class Command(BaseCommand):
             self.stdout.write(
                 "No hay ciudades vinculadas a usuarios activos. Usando ciudades por defecto..."
             )
-            for city_name in ["Madrid", "Barcelona", "Valencia"]:
-                city = City.objects.filter(name=city_name).first()
-                if city:
-                    cities.append(city)
+            for city_data in _DEFAULT_CITIES:
+                db_city = City.objects.filter(name=city_data["name"]).first()
+                if db_city:
+                    cities.append(db_city)
+                else:
+                    cities.append(
+                        _StubCity(
+                            name=city_data["name"],
+                            country_code=city_data["country_code"],
+                            latitude=city_data["latitude"],
+                            longitude=city_data["longitude"],
+                        )
+                    )
 
         # Procesar ciudades
         processed_cities = 0
         for city in cities:
             try:
                 self.stdout.write(
-                    f"Actualizando clima para {city.name} ({city.country.code2})..."
+                    f"Actualizando clima para {city.name}..."
                 )
                 WeatherService.fetch_and_store_weather(city)
                 processed_cities += 1

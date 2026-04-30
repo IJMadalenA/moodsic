@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock, patch
+from datetime import timedelta
 
 import pytest
 from cities_light.models import City, Country
@@ -112,6 +113,33 @@ def test_weather_service_api_exception(mock_get):
 
     with pytest.raises(requests.exceptions.RequestException):
         WeatherService.fetch_and_store_weather(city)
+
+
+@pytest.mark.django_db
+@patch("requests.get")
+def test_weather_service_returns_cached_record_on_provider_failure(mock_get):
+    import requests
+
+    country = Country.objects.create(name="Spain", code2="ES")
+    city = City.objects.create(
+        name="Madrid", country=country, latitude=40.4, longitude=-3.7
+    )
+
+    cached = WeatherContext.objects.create(
+        city=city,
+        main_status="Clouds",
+        description="cached weather",
+        temperature=18.0,
+        feels_like=17.0,
+        timestamp=timezone.now() - timedelta(hours=1),
+    )
+
+    mock_get.side_effect = requests.exceptions.RequestException("provider down")
+
+    weather = WeatherService.fetch_and_store_weather(city)
+
+    assert weather.id == cached.id
+    assert WeatherContext.objects.count() == 1
 
 
 @pytest.mark.django_db

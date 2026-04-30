@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import datetime
 
 import requests
@@ -69,20 +70,46 @@ class NewsService:
                 }
             return cached_items
 
+        is_top_headlines = "top-headlines" in base_url
         params = {
-            "q": query,
-            "language": language,
-            "sortBy": "publishedAt",
             "pageSize": max(1, min(page_size, 100)),
         }
+        if is_top_headlines:
+            params["country"] = "us"
+        else:
+            params["q"] = query
+            params["language"] = language
+            params["sortBy"] = "publishedAt"
         headers = {"X-Api-Key": api_key}
 
+        timeout_seconds = int(getattr(settings, "EXTERNAL_API_TIMEOUT_SECONDS", 12))
+        retries = int(getattr(settings, "EXTERNAL_API_RETRIES", 2))
+        backoff_seconds = float(
+            getattr(settings, "EXTERNAL_API_RETRY_BACKOFF_SECONDS", 0.5)
+        )
+
         try:
-            response = requests.get(
-                base_url, params=params, headers=headers, timeout=12
-            )
-            response.raise_for_status()
-            payload = response.json()
+            payload = None
+            for attempt in range(retries + 1):
+                try:
+                    response = requests.get(
+                        base_url,
+                        params=params,
+                        headers=headers,
+                        timeout=max(2, timeout_seconds),
+                    )
+                    if response.status_code >= 500 or response.status_code == 429:
+                        raise requests.HTTPError(response=response)
+                    response.raise_for_status()
+                    payload = response.json()
+                    break
+                except requests.RequestException:
+                    if attempt >= retries:
+                        raise
+                    time.sleep(backoff_seconds * (2**attempt))
+
+            if payload is None:
+                raise requests.RequestException("No news payload received from provider")
         except requests.RequestException as exc:
             logger.warning(
                 f"News provider unavailable, using cached news fallback: {exc}"

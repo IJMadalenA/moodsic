@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 from django.test import override_settings
 
 from apps.context.models import NewsContext
@@ -12,6 +13,7 @@ from apps.context.services.news_service import NewsService
 @patch("apps.context.services.news_service.requests.get")
 def test_fetch_and_store_news(mock_get):
     mock_response = MagicMock()
+    mock_response.status_code = 200
     mock_response.json.return_value = {
         "articles": [
             {
@@ -79,3 +81,31 @@ def test_normalize_category_supported_values():
 
 def test_normalize_category_invalid_falls_back_to_general():
     assert NewsService._normalize_category("finance") == "general"
+
+
+@pytest.mark.django_db
+@override_settings(NEWSAPI_KEY="fake-key", EXTERNAL_API_RETRIES=1)
+@patch("apps.context.services.news_service.requests.get")
+def test_fetch_news_retries_before_success(mock_get):
+    first_error = requests.RequestException("temporary outage")
+    success_response = MagicMock()
+    success_response.status_code = 200
+    success_response.json.return_value = {
+        "articles": [
+            {
+                "title": "Recovered provider response",
+                "description": "Provider became healthy after retry",
+                "url": "https://example.com/news/retry",
+                "source": {"name": "Retry News"},
+                "publishedAt": "2026-04-10T10:00:00Z",
+            }
+        ]
+    }
+
+    mock_get.side_effect = [first_error, success_response]
+
+    items = NewsService.fetch_latest_news(query="music")
+
+    assert len(items) == 1
+    assert items[0]["title"] == "Recovered provider response"
+    assert mock_get.call_count == 2
