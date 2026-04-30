@@ -6,12 +6,169 @@ Esta guía está pensada para una persona que entra nueva al proyecto y necesita
 
 MoodSic es una plataforma que genera playlists personalizadas combinando:
 
-- catálogo musical;
-- preferencias e historial del usuario;
-- contexto externo como clima, noticias y momento del día;
-- un recomendador basado en aprendizaje por refuerzo.
+- historial real de Spotify del usuario (hasta 500 canciones);
+- contexto externo — clima real de la ciudad del usuario (Open-Meteo) y noticias (NewsAPI);
+- un recomendador basado en aprendizaje por refuerzo (DQN).
 
-El proyecto está diseñado para poder avanzar incluso cuando no se dispone de APIs reales o datos de usuarios, gracias a un modo offline con contexto e interacciones sintéticas.
+El sistema funciona en **modo online** (Spotify OAuth + APIs reales) y **modo offline** (datos sintéticos para desarrollo y benchmarking).
+
+## 2. Objetivo funcional
+
+La idea principal es que el sistema no recomiende música de forma genérica, sino contextual:
+
+- el usuario configura su ciudad en el perfil → el sistema obtiene el clima real de esa ubicación;
+- si el clima cambia, la selección puede adaptarse;
+- el historial de escucha del usuario pesa en la decisión del agente RL;
+- las playlists generadas se sincronizan directamente a Spotify.
+
+## 3. Cómo se organiza el proyecto
+
+### apps/users
+Autenticación, perfiles y conexión OAuth con Spotify. Incluye el campo `city` (FK a `cities_light.City`) que el usuario puede configurar desde `/accounts/profile/` mediante un buscador con autocompletado AJAX. La ciudad determina de dónde se obtiene el clima.
+
+Vistas clave:
+- `profile_view` — muestra el perfil
+- `update_profile` — guarda la ciudad seleccionada (POST)
+- `search_cities` — endpoint AJAX `/accounts/profile/cities/?q=...` que devuelve ciudades filtradas en JSON
+
+### apps/music
+Catálogo local de tracks, artistas y álbumes. Sincronización con Spotify:
+- `spotify_music_service.py`: liked tracks paginados, top tracks (3 rangos), recently played, playlists propias.
+- `music_data_service.py`: persistencia en BD. `preview_url` acepta cadena vacía (Spotify puede devolver `null`).
+
+### apps/context
+Contexto externo:
+- `WeatherContext`: temperatura, humedad, viento, nubes (`clouds_all`), lluvia (`rain_1h`), estado WMO. Se obtiene de Open-Meteo con las coordenadas de la ciudad del usuario.
+- `NewsContext`: noticias desde NewsAPI.
+- `refresh_context`: comando que actualiza clima para todas las ciudades de usuarios activos. Si ningún usuario tiene ciudad, usa Madrid y Barcelona como respaldo.
+
+### apps/interactions
+Núcleo funcional:
+- Genera playlists usando el agente DQN.
+- Registra interacciones del usuario y calcula reward.
+- Expone la API REST principal.
+- Comando `analyze_and_generate`: orquesta todo el flujo online.
+
+### apps/dashboard
+Métricas y vistas agregadas para seguimiento del sistema.
+
+### ml
+Lógica del modelo de recomendación:
+- `agent.py`: DQN con target network, experience replay, epsilon-greedy.
+- `state_builder.py`: vector de estado de 45 dimensiones. El bloque de clima (`_extract_weather_features`) lee los campos del `WeatherContext` pasado como dict.
+- `reward.py`: reward multifactor [-2.0, 3.0+].
+- `training.py`: entrenamiento y persistencia.
+- Modelo activo: `ml/models/dqn_agent_20260430_163358.h5`
+
+### pipelines
+Utilidades de ETL y preparación de datos/contexto.
+
+## 4. Flujo principal del sistema (modo online)
+
+1. El usuario inicia sesión con Spotify OAuth (`/accounts/spotify/login/`).
+2. Configura su ciudad en `/accounts/profile/` (buscador de ciudad con AJAX).
+3. `analyze_and_generate` recopila hasta 500 canciones de su historial de Spotify.
+4. Se persisten en BD local (`Track`).
+5. Se obtiene el clima real de su ciudad (Open-Meteo) y se guarda como `WeatherContext`.
+6. Se construye el estado de 45 dimensiones para el agente DQN.
+7. El agente selecciona N canciones y se crea la playlist.
+8. La playlist se sincroniza a Spotify y se devuelve el enlace.
+9. Las interacciones del usuario generan reward que retroalimenta el entrenamiento.
+
+## 5. Modos de trabajo
+
+### Modo online
+Requiere cuenta Spotify, credenciales configuradas en `.env` y Docker corriendo.
+
+### Modo offline
+Independiente de APIs. Usa datos sintéticos para desarrollo y benchmarking.
+
+```bash
+uv run manage.py seed_synthetic_context
+uv run manage.py seed_synthetic_interactions
+uv run manage.py evaluate_model --with-synthetic-context --auto-train
+```
+
+## 6. Comandos esenciales para empezar
+
+### Arranque
+
+```bash
+docker-compose up -d          # PostgreSQL + Redis
+uv run manage.py migrate
+uv run manage.py createsuperuser
+uv run manage.py cities_light  # Importar ciudades de España
+uv run manage.py runserver
+```
+
+### Generar una playlist real
+
+```bash
+uv run manage.py analyze_and_generate --username tu@email.com --max-tracks 500 --count 35
+```
+
+### Benchmark reproducible
+
+```bash
+uv run manage.py benchmark_matrix --config ml/benchmark_matrix_config.example.json
+```
+
+### Ayuda integrada
+
+```bash
+uv run manage.py moodsic_help
+```
+
+## 7. Dónde tocar código según el tipo de tarea
+
+### Cambiar cómo se generan playlists
+- `apps/interactions/services/playlist_generation_service.py`
+- `apps/interactions/management/commands/analyze_and_generate.py`
+
+### Cambiar la lógica de reward
+- `apps/interactions/services/reward_service.py`
+- `ml/reward.py`
+
+### Cambiar el vector de estado del modelo
+- `ml/state_builder.py`
+
+### Cambiar las entradas de contexto (clima/noticias)
+- `apps/context/services/weather_service.py`
+- `apps/context/services/news_service.py`
+- `apps/context/management/commands/refresh_context.py`
+
+### Cambiar el perfil de usuario o el selector de ciudad
+- `apps/users/views/profile_view.py`
+- `templates/users/profile.html`
+
+### Cambiar endpoints o payloads de la API
+- `apps/interactions/views/`
+- `apps/interactions/schemas.py`
+
+## 8. Limitaciones conocidas
+
+- **Audio features (403)**: Spotify deprecó `/v1/audio-features` en noviembre 2024 para apps no en la allowlist. El agente usa valores neutros (0.5) para esas features. No afecta al funcionamiento general.
+- **Playlists propias (403)**: Requiere scope `playlist-read-private` en el token OAuth. `analyze_and_generate` continúa con las otras fuentes (liked, top, recent).
+- **Base de datos geográfica**: Solo España (`CITIES_LIGHT_INCLUDE_COUNTRIES=['ES']`). Para añadir más países, actualizar esa configuración y re-ejecutar `cities_light`.
+
+## 9. Estado actual (30 abril 2026)
+
+- Autenticación OAuth Spotify: funcional.
+- Recopilación de hasta 500 canciones: funcional (270+ reales obtenidas en prueba).
+- Agente DQN: entrenado y operativo, genera playlists de 35 canciones.
+- Clima real por ciudad del usuario: funcional (Open-Meteo).
+- Selector de ciudad en perfil web con AJAX: funcional.
+- Playlists sincronizadas a Spotify: funcional.
+- Noticias reales via NewsAPI: funcional.
+- Audio features: no disponibles (Spotify API deprecada).
+
+## 10. Qué revisar en la primera hora
+
+1. Este documento de onboarding.
+2. `README.md` del repositorio.
+3. `MANAGEMENT_COMMANDS.md`.
+4. Swagger en `/api/interactions/docs/`.
+5. `ml/state_builder.py` y `apps/interactions/management/commands/analyze_and_generate.py`.
 
 ## 2. Objetivo funcional
 

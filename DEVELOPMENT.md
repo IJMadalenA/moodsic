@@ -1,41 +1,243 @@
-# Moodsic - RL-Based Spotify Playlist Generator
-## Development Status: FEATURE COMPLETE ✅
+# MoodSic — Guía de desarrollo
+## Estado: OPERATIVO CON DATOS REALES ✅
 
-### Quick Start
+---
 
-#### 1. Environment Setup
+## Inicio rápido
+
+### 1. Entorno Python
+
 ```bash
-# Create virtual environment
 uv venv
-
-# Install dependencies
 uv sync
+```
 
-# Configure environment
+### 2. Variables de entorno
+
+```bash
 cp .env.example .env
-# Edit .env with your Spotify credentials and set SPOTIPY_REDIRECT_URI=http://127.0.0.1:8000/callback
-# Make sure the Spotify app redirect URI matches this URL.
 ```
 
-#### 2. Database Setup
-```bash
-# Create database
-createdb moodsic  # PostgreSQL
+Valores obligatorios:
 
-# Run migrations
+```
+DATABASE_URL=postgres://cmoodsic_db_user:cmoodsic_db_pass@localhost:5434/cmoodsic_db
+SPOTIPY_CLIENT_ID=<tu_client_id>
+SPOTIPY_CLIENT_SECRET=<tu_client_secret>
+SPOTIPY_REDIRECT_URI=http://127.0.0.1:8000/accounts/spotify/login/callback/
+NEWSAPI_KEY=<tu_newsapi_key>
+SECRET_KEY=<django_secret_key>
+DEBUG=True
+```
+
+> El `SPOTIPY_REDIRECT_URI` debe coincidir exactamente con el configurado en el dashboard de Spotify Developer.
+
+### 3. Infraestructura Docker
+
+```bash
+docker-compose up -d
+```
+
+Levanta:
+- **PostgreSQL** en `localhost:5434` (usuario/pass/db: `cmoodsic_db_user` / `cmoodsic_db_pass` / `cmoodsic_db`)
+- **Redis** en `localhost:6379`
+
+### 4. Migraciones y datos iniciales
+
+```bash
 uv run manage.py migrate
-
-# Create superuser
 uv run manage.py createsuperuser
+
+# Importar base de datos geográfica de España
+# (necesario para el selector de ciudad del perfil)
+uv run manage.py cities_light
 ```
 
-#### 3. Development Server
+> `cities_light` descarga datos de GeoNames. Con `CITIES_LIGHT_INCLUDE_COUNTRIES = ['ES']` solo importa España (~544 ciudades).
+
+### 5. Servidor de desarrollo
+
 ```bash
-# Start Django development server
 uv run manage.py runserver
-
-# Visit http://localhost:8000/admin for admin panel
+# → http://127.0.0.1:8000/
 ```
+
+---
+
+## Flujo principal online (Spotify real)
+
+### Autenticación
+
+1. Ve a `/accounts/spotify/login/` — autentica con tu cuenta Spotify.
+2. Los tokens se guardan en `User.access_token` / `User.refresh_token`.
+3. El refresh automático está implementado en `SpotifyMusicService._refresh_token_process()`.
+
+### Configurar ciudad del usuario
+
+Ve a `/accounts/profile/` y usa el campo de búsqueda de ciudad. Esto permite obtener clima real de tu ubicación en vez del respaldo por defecto.
+
+### Generar una playlist
+
+```bash
+uv run manage.py analyze_and_generate \
+    --username tu@email.com \
+    --max-tracks 500 \
+    --count 35 \
+    --name "Mi playlist MoodSic"
+```
+
+El comando:
+1. Recopila hasta 500 canciones (liked tracks, top tracks ×3 rangos, recently played).
+2. Las persiste en la BD local (`Track`).
+3. Obtiene/refresca el clima real de la ciudad del usuario (Open-Meteo).
+4. Llama al agente DQN para seleccionar N canciones.
+5. Crea la playlist en Spotify y devuelve el enlace.
+
+> **Nota**: La API `/v1/audio-features` de Spotify está deprecada para apps no aprobadas desde noviembre 2024. El agente usa valores neutros (0.5) para las características de audio y funciona igualmente.
+
+---
+
+## Flujo offline (sin APIs externas)
+
+```bash
+uv run manage.py seed_synthetic_context
+uv run manage.py seed_synthetic_interactions --users 3 --tracks 30 --interactions 600
+uv run manage.py evaluate_model --with-synthetic-context --auto-train
+```
+
+Útil para desarrollo rápido, demos y benchmarking reproducible.
+
+---
+
+## Tests
+
+```bash
+# Tests de componentes ML (36 tests)
+uv run pytest ml/tests/ -v
+
+# Tests de API e interacciones
+uv run pytest apps/interactions/tests/ -v
+
+# Todo con cobertura
+uv run pytest ml/tests/ apps/interactions/tests/ -v --cov=ml --cov=apps
+```
+
+---
+
+## Entrenamiento del modelo
+
+```bash
+# Entrenamiento rápido (1 episodio, solo prueba)
+uv run ml/training.py train --episodes 1 --batch-size 32 --save
+
+# Entrenamiento con datos reales (últimos 30 días)
+uv run manage.py train_agent --episodes 20 --days 30 --save
+
+# Evaluación de un modelo guardado
+uv run manage.py evaluate_model --model-path ml/models/dqn_agent_20260430_163358.h5
+```
+
+Modelo activo: `ml/models/dqn_agent_20260430_163358.h5`
+
+---
+
+## API REST
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/interactions/interactions/` | Crear interacción |
+| GET | `/api/interactions/interactions/user/stats/` | Estadísticas de usuario |
+| POST | `/api/interactions/playlists/generate/` | Generar playlist RL |
+| GET | `/api/interactions/playlists/{id}/` | Detalle de playlist |
+| POST | `/api/interactions/playlists/{id}/sync-spotify/` | Sincronizar con Spotify |
+| GET | `/api/interactions/docs/` | Swagger / OpenAPI |
+
+---
+
+## Arquitectura
+
+### Capa RL (`ml/`)
+
+| Fichero | Función |
+|---------|---------|
+| `agent.py` | DQN con target network, experience replay, epsilon-greedy. Input(45)→Dense(128)→Dense(128)→Dense(64)→Output(100) |
+| `state_builder.py` | Vector de estado de 45 dimensiones normalizado a [0,1] |
+| `reward.py` | Reward multifactor en rango [-2.0, 3.0+] |
+| `training.py` | Orquestación de entrenamiento, persistencia y logs |
+
+### Apps Django
+
+| App | Responsabilidad |
+|-----|-----------------|
+| `users` | Autenticación, perfil, OAuth Spotify, selector de ciudad (`User.city → cities_light.City`) |
+| `music` | Catálogo local de tracks, artistas; sincronización con Spotify |
+| `context` | `WeatherContext` (Open-Meteo), `NewsContext` (NewsAPI), actualización por ciudad del usuario |
+| `interactions` | Generación de playlists, feedback, reward, API principal |
+| `dashboard` | Métricas agregadas |
+
+### Modelos clave
+
+- `User.city` → FK a `cities_light.City` con latitud/longitud para Open-Meteo.
+- `WeatherContext`: temperatura, sensación, humedad, viento, presión, nubes (`clouds_all`), lluvia (`rain_1h`), estado.
+- `Track`: metadatos de Spotify. `preview_url` admite cadena vacía (la API puede devolver `null`).
+
+---
+
+## Estructura de ficheros relevantes
+
+```
+moodsic/
+├── apps/
+│   ├── users/
+│   │   ├── models/user.py              # User con campo city FK cities_light
+│   │   └── views/profile_view.py       # Vista perfil + update_profile + search_cities
+│   ├── music/
+│   │   └── services/
+│   │       ├── spotify_music_service.py  # Spotify API: liked, top, recent, playlists
+│   │       └── music_data_service.py     # Persistencia de tracks en BD
+│   ├── context/
+│   │   ├── models/weather_context.py
+│   │   ├── services/weather_service.py   # fetch_and_store_weather(city)
+│   │   └── management/commands/refresh_context.py
+│   └── interactions/
+│       └── management/commands/analyze_and_generate.py  # Comando principal
+├── ml/
+│   ├── agent.py
+│   ├── state_builder.py
+│   ├── reward.py
+│   ├── training.py
+│   └── models/dqn_agent_20260430_163358.h5
+├── templates/
+│   └── users/profile.html              # Perfil con selector de ciudad autocomplete
+├── config/
+│   └── settings.py                     # CITIES_LIGHT_INCLUDE_COUNTRIES=['ES']
+├── docker-compose.yml                  # PostgreSQL:5434 + Redis:6379
+└── manage.py
+```
+
+---
+
+## Notas conocidas
+
+- **Audio features (403)**: Spotify deprecó `/v1/audio-features` en nov. 2024 para apps no en la allowlist. El agente RL usa valores neutros (0.5) para esas features y funciona correctamente.
+- **Playlists propias (403)**: `/v1/me/playlists` requiere scope `playlist-read-private` que el token actual puede no incluir. El comando `analyze_and_generate` continúa con las otras fuentes.
+- **Base de datos geográfica**: Solo se importa España (`CITIES_LIGHT_INCLUDE_COUNTRIES=['ES']`). Para añadir más países, actualiza esta configuración y vuelve a ejecutar `manage.py cities_light`.
+
+---
+
+## Estado actual (30 abril 2026)
+
+- [x] Autenticación OAuth Spotify funcional
+- [x] Recopilación de 500 canciones del historial de Spotify
+- [x] Agente DQN entrenado y operativo (`dqn_agent_20260430_163358.h5`)
+- [x] Clima real por ciudad del usuario (Open-Meteo)
+- [x] Selector de ciudad en el perfil web con autocompletado AJAX
+- [x] Generación y sincronización de playlists a Spotify
+- [x] Noticias reales via NewsAPI
+- [x] PostgreSQL + Redis via Docker
+- [ ] Audio features reales (bloqueado por Spotify API — requiere aprobación de app)
+- [ ] Playlists propias del usuario (requiere scope adicional en OAuth)
+- [ ] Deploy en producción
 
 ---
 

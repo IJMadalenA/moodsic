@@ -1,58 +1,127 @@
 # Contexto y Datos Externos
 
-Este documento detalla cómo Moodsic gestiona los datos del entorno (clima, ubicación, tendencias) para alimentar su motor de recomendaciones.
+Este documento detalla cómo MoodSic gestiona los datos del entorno (clima, ubicación, noticias) para alimentar el motor de recomendaciones.
+
+---
 
 ## 1. Datos Geográficos (cities_light)
 
-Moodsic utiliza `django-cities-light` para mantener una base de datos local de países, regiones y ciudades de todo el mundo. Esto permite mapear la ubicación del usuario a coordenadas geográficas sin depender de APIs externas para cada búsqueda.
+MoodSic usa `django-cities-light` para mantener una base de datos local de países y ciudades con coordenadas. Esto permite obtener clima real de cualquier ciudad sin depender de APIs de geocodificación.
 
-### Configuración
-En `config/settings.py` se han configurado los siguientes filtros para el MVP (enfocado inicialmente en mercados hispanohablantes):
-- **Países incluidos**: España (ES), México (MX), Argentina (AR), Colombia (CO), Chile (CL), Perú (PE).
-- **Idiomas de traducción**: Español e Inglés.
+### Configuración actual (`config/settings.py`)
 
-### Comando de Automatización
-Para facilitar la población de estos datos durante la instalación o migraciones, se ha creado un comando personalizado:
-```bash
-uv run manage.py setup_geo
+```python
+CITIES_LIGHT_INCLUDE_COUNTRIES = ['ES']       # Solo España
+CITIES_LIGHT_TRANSLATION_LANGUAGES = ['es', 'en']
 ```
-Este comando:
-1. Ejecuta las migraciones necesarias para `cities_light`.
-2. Descarga y procesa los datos de GeoNames de forma desatendida.
+
+La BD contiene ~544 ciudades españolas.
+
+### Importar datos
+
+```bash
+uv run manage.py cities_light
+```
+
+Los datos se descargan de GeoNames y se almacenan localmente. Ejecuciones posteriores solo actualizan cambios incrementales.
+
+### Selector de ciudad en el perfil
+
+El usuario puede configurar su ciudad desde `/accounts/profile/`. El campo `User.city` es una FK a `cities_light.City`. El perfil incluye:
+
+- campo de texto con autocompletado AJAX (`/accounts/profile/cities/?q=...`);
+- botón "Guardar ciudad" que hace POST a `/accounts/profile/update/`;
+- botón "Quitar ciudad" para eliminar la asociación.
+
+Una vez configurada, el sistema obtiene el clima de las coordenadas de esa ciudad. Sin ciudad configurada, `refresh_context` usa Madrid y Barcelona como respaldo.
 
 ---
 
-## 2. Información Climática (Open-Meteo)
+## 2. Clima (Open-Meteo)
 
-La obtención de datos climáticos se realiza mediante la API de **Open-Meteo**, que ofrece datos precisos de forma gratuita y sin necesidad de API Key.
+MoodSic obtiene datos climáticos de **Open-Meteo** — API gratuita sin API key.
 
-### Modelo `WeatherContext`
-Ubicado en `apps/context/models/weather_context.py`, este modelo almacena:
-- **Ubicación**: Relación con `City`, `Region` y `Country`.
-- **Estado**: Descripción del clima (ej: "Llovizna ligera") y código WMO.
-- **Métricas**: Temperatura, sensación térmica, humedad, presión, viento, nubosidad y precipitación.
-- **Momentos**: Timestamp de la medición, amanecer y atardecer.
+### Modelo `WeatherContext` (`apps/context/models/weather_context.py`)
 
-### Servicio `WeatherService`
-Ubicado en `apps/context/services/weather_service.py`, este servicio proporciona el método principal:
-- `fetch_and_store_weather(city)`: Consulta Open-Meteo usando las coordenadas de la ciudad y guarda un registro en `WeatherContext`.
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `city` | FK → City | Ciudad a la que corresponde el dato |
+| `temperature` | float | Temperatura en °C |
+| `feels_like` | float | Sensación térmica en °C |
+| `humidity` | int | Humedad relativa en % |
+| `wind_speed` | float | Velocidad del viento km/h |
+| `pressure` | float | Presión atmosférica hPa |
+| `visibility` | float (nullable) | Visibilidad en metros (Open-Meteo no siempre la devuelve) |
+| `clouds_all` | int | Cobertura de nubes en % |
+| `rain_1h` | float | Precipitación en la última hora mm |
+| `main_status` | str | Estado principal (Clear, Clouds, Rain…) |
+| `description` | str | Descripción textual |
+| `timestamp` | datetime | Momento de la medición |
 
-### Gestión en el Panel de Administración
+### Servicio `WeatherService` (`apps/context/services/weather_service.py`)
 
-Moodsic utiliza **Django Unfold** para visualizar y gestionar el contexto climático y geográfico desde el panel administrativo.
+Método principal:
 
-#### Acciones de Geografía (`CityAdmin`)
-En la lista de ciudades (`/admin/cities_light/city/`), se ha habilitado un botón para la sincronización de datos:
-- **Botón "Actualizar Datos Geográficos"**: Ubicado en la barra superior de la lista (esquina derecha). Al presionarlo, ejecuta el comando `setup_geo`, que actualiza la base de datos de países, regiones y ciudades según la configuración de `settings.py`.
+```python
+WeatherService.fetch_and_store_weather(city: City) -> WeatherContext
+```
 
-#### Acciones del Admin (`WeatherContextAdmin`)
-En la lista de contextos climáticos (`/admin/context/weathercontext/`), se han habilitado herramientas para actualizar datos en tiempo real:
-- **Botón "Actualizar clima (Global)"**: Ubicado en la barra superior de la lista. Al presionarlo, el sistema selecciona automáticamente una muestra de ciudades (inicialmente las primeras 10 con coordenadas) y descarga sus datos climáticos actuales.
-- **Acción de lista "Actualizar clima para ciudades seleccionadas"**: Permite seleccionar registros existentes y forzar una actualización del clima para las ciudades vinculadas a esos registros.
+Construye la URL de Open-Meteo con `city.latitude` y `city.longitude`, parsea la respuesta y guarda un nuevo `WeatherContext`.
+
+### Comando `refresh_context`
+
+```bash
+uv run manage.py refresh_context
+```
+
+1. Consulta `City.objects.filter(user__is_active=True).distinct()` para obtener las ciudades de los usuarios activos.
+2. Si la lista está vacía, usa las ciudades por defecto (Madrid y Barcelona).
+3. Para cada ciudad, llama a `WeatherService.fetch_and_store_weather()` y a los proveedores de noticias.
+
+### Integración con el agente RL
+
+El comando `analyze_and_generate` obtiene el `WeatherContext` más reciente (o lo refresca si tiene más de 60 minutos) y construye el dict que pasa al `StateBuilder`:
+
+```python
+weather_context_dict = {
+    "temperature": latest_wc.temperature or 20.0,
+    "feels_like": latest_wc.feels_like or 20.0,
+    "humidity": latest_wc.humidity or 60,
+    "wind_speed": latest_wc.wind_speed or 0.0,
+    "pressure": latest_wc.pressure or 1013.0,
+    "visibility": latest_wc.visibility or 10000,
+    "clouds_all": latest_wc.clouds_all or 0,
+    "rain_1h": latest_wc.rain_1h or 0.0,
+    "main_status": latest_wc.main_status or "Clear",
+}
+```
+
+El `StateBuilder._extract_weather_features()` lee exactamente estos nombres de campo.
 
 ---
 
-## 3. Próximos Pasos (En desarrollo)
-- **News API Integration**: Servicio para capturar noticias relevantes por región.
-- **Mood Mapper**: Lógica para transformar códigos climáticos y noticias en "Moods" consumibles por el agente de Spotify.
-- **Periodic Pipeline**: Automatización de la actualización del clima para usuarios activos.
+## 3. Noticias (NewsAPI)
+
+MoodSic obtiene noticias desde **NewsAPI** usando la clave configurada en `NEWSAPI_KEY`.
+
+### Servicio de noticias (`apps/context/services/news_service.py`)
+
+Llama a `/v2/top-headlines?country=us` y persiste los resultados como `NewsContext`.
+
+### Comando manual
+
+```bash
+uv run manage.py fetch_news_context --query "music OR artists" --category music
+```
+
+---
+
+## 4. Estado actual (30 abril 2026)
+
+| Servicio | Estado | Notas |
+|---------|--------|-------|
+| Open-Meteo (clima) | Operativo | Sin API key, gratuito |
+| NewsAPI (noticias) | Operativo | Requiere `NEWSAPI_KEY` |
+| cities_light (geografía) | Operativo | Solo España, ~544 ciudades |
+| Selector de ciudad en perfil | Operativo | Autocompletado AJAX funcional |
+| Audio features Spotify | No disponible | API deprecada por Spotify desde nov. 2024 |
