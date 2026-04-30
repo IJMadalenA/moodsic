@@ -105,10 +105,10 @@ class TestCommandsRobust:
 
     @patch("apps.interactions.management.commands.evaluate_model.ModelEvaluator")
     @patch("apps.interactions.management.commands.evaluate_model.TrainingDataLoader")
-    @patch("apps.interactions.management.commands.evaluate_model.Path.exists")
+    @patch("apps.interactions.management.commands.evaluate_model.MODELS_DIR")
     @patch("apps.interactions.management.commands.evaluate_model.ModelTrainer")
     def test_evaluate_model_auto_train(
-        self, mock_trainer, mock_exists, mock_loader, mock_evaluator_class, user
+        self, mock_trainer, mock_models_dir, mock_loader, mock_evaluator_class, user
     ):
         from apps.interactions.models import Interaction
         from apps.music.models import Track
@@ -121,7 +121,9 @@ class TestCommandsRobust:
             user=user, track=tr, feedback="like", play_duration=10, track_duration=100
         )
 
-        mock_exists.return_value = True
+        # Simulate that a model file was saved after training
+        fake_model_path = Path("ml/models/dqn_benchmark_test.h5")
+        mock_models_dir.glob.return_value = [fake_model_path]
         mock_evaluator = MagicMock()
         mock_evaluator_class.return_value = mock_evaluator
         mock_evaluator.evaluate_on_test_set.return_value = {"accuracy": 0.9}

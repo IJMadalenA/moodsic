@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import pytest
 from django.core.management import call_command
+from django.utils import timezone
 
 
 @pytest.mark.django_db
@@ -183,3 +184,47 @@ class TestManagementCommands:
             content = output_md.read_text()
             assert "Benchmark Summary" in content
             assert "Robustness by Configuration" in content
+
+    def test_check_data_integrity_command_empty_db(self):
+        """check_data_integrity runs without errors on an empty DB."""
+        call_command("check_data_integrity")
+
+    def test_check_data_integrity_command_with_data(self):
+        """check_data_integrity reports correctly when data exists."""
+        from apps.context.models import NewsContext, WeatherContext
+        from apps.music.models import Album, Track
+
+        album = Album.objects.create(name="TestAlbum", spotify_id="alb_cdi")
+        Track.objects.create(
+            name="TestTrack", spotify_id="trk_cdi", album=album, track_number=1, duration_ms=1000
+        )
+        WeatherContext.objects.create(
+            main_status="Clear",
+            description="Sunny",
+            temperature=20.0,
+            feels_like=19.0,
+            timestamp=timezone.now(),
+        )
+        NewsContext.objects.create(
+            title="Test News",
+            source="Test Source",
+            url="https://example.com/news",
+            published_at="2026-01-01T00:00:00Z",
+        )
+        # Should complete without error
+        call_command("check_data_integrity")
+
+    def test_populate_db_command(self):
+        """populate_db runs without error when Spotify client is mocked."""
+        from unittest.mock import MagicMock, patch
+
+        mock_sp = MagicMock()
+        mock_sp.search.return_value = {
+            "artists": {"items": []},
+            "albums": {"items": []},
+            "tracks": {"items": []},
+        }
+
+        with patch("apps.music.management.commands.populate_db.spotipy.Spotify") as mock_class:
+            mock_class.return_value = mock_sp
+            call_command("populate_db")
