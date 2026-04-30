@@ -25,3 +25,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("api/interactions/", include("apps.interactions.urls")),
 ]
+
+# Custom error handlers (active only when DEBUG=False)
+handler404 = "apps.dashboard.views.error_404"
+handler500 = "apps.dashboard.views.error_500"

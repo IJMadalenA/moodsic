@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}500 — Error del servidor · MoodSic{% endblock %}
+
+{% block content %}
+<div class="card" style="text-align:center;padding:64px 32px;">
+    <div style="font-size:5rem;margin-bottom:16px;">🔧</div>
+    <h1 style="font-size:3rem;color:#f59e0b;margin-bottom:8px;">500</h1>
+    <h2 style="color:#e5e7eb;margin-bottom:16px;">Error interno del servidor</h2>
+    <p class="muted" style="max-width:400px;margin:0 auto 32px;">
+        Algo salió mal en nuestro lado. El equipo de MoodSic ya fue notificado.
+        Por favor, inténtalo de nuevo en unos momentos.
+    </p>
+    <a href="/" style="
+        display:inline-block;
+        padding:12px 28px;
+        background:#f59e0b;
+        color:#0f172a;
+        border-radius:999px;
+        font-weight:600;
+        text-decoration:none;
+    ">Volver al inicio</a>
+</div>
+{% endblock %}

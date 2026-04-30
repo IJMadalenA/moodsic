@@ -3,11 +3,16 @@ from django.shortcuts import render
 
 from apps.context.models import NewsContext, WeatherContext
 from apps.interactions.models import Interaction, InteractionSession
+from apps.interactions.services.playlist_generation_service import (
+    get_playlist_generation_service,
+)
 from apps.music.models import Playlist, Track
 
 
 def dashboard_home(request):
     """Vista ligera de demo para profesores y equipo."""
+    get_playlist_generation_service().close_stale_sessions()
+
     total_interactions = Interaction.objects.count()
     total_playlists = Playlist.objects.count()
     total_tracks = Track.objects.count()
@@ -55,3 +60,13 @@ def dashboard_home(request):
             "integration_status": integration_status,
         },
     )
+
+
+def error_404(request, exception=None):
+    """Custom 404 error page."""
+    return render(request, "404.html", status=404)
+
+
+def error_500(request):
+    """Custom 500 error page."""
+    return render(request, "500.html", status=500)

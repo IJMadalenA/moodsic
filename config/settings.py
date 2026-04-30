@@ -25,6 +25,7 @@ env = environ.Env(
     LOCAL=(bool, False),
     ALLOWED_HOSTS=(list, []),
     CSRF_TRUSTED_ORIGINS=(list, []),
+    SECURE_SSL_REDIRECT=(bool, False),
     SECRET_KEY=(str, ""),
     DATABASE_URL=(str, "sqlite:///db.sqlite3"),
     POSTGRES_USER=(str, "postgres"),
@@ -32,6 +33,10 @@ env = environ.Env(
     POSTGRES_DB=(str, "moodsic"),
     POSTGRES_HOST=(str, "localhost"),
     POSTGRES_PORT=(int, 5432),
+    EXTERNAL_API_TIMEOUT_SECONDS=(int, 12),
+    EXTERNAL_API_RETRIES=(int, 2),
+    EXTERNAL_API_RETRY_BACKOFF_SECONDS=(float, 0.5),
+    SESSION_INACTIVITY_MINUTES=(int, 30),
 )
 
 
@@ -62,10 +67,17 @@ ADMINS = env.list(
 )  # https://docs.djangoproject.com/es/6/ref/settings/#admins.
 MANAGERS = ADMINS  # https://docs.djangoproject.com/es/6/ref/settings/#managers.
 
-ALLOWED_HOSTS = env.list(
-    "ALLOWED_HOSTS"
-)  # https://docs.djangoproject.com/es/6/ref/settings/#allowed-hosts.
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
+if DEBUG and not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
 APPEND_SLASH = True  # https://docs.djangoproject.com/es/6/ref/settings/#append-slash.
+
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+if DEBUG and not CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS = [
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+    ]
 
 
 # Application definition
@@ -198,16 +210,39 @@ ACCOUNT_ADAPTER = "allauth.account.adapter.DefaultAccountAdapter"
 
 # SEGURIDAD DE SESIÓN
 SESSION_COOKIE_SAMESITE = "Lax"
-SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = IS_PRODUCTION
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SECURE = IS_PRODUCTION
+CSRF_COOKIE_HTTPONLY = False
+
+SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=IS_PRODUCTION)
+SECURE_HSTS_SECONDS = 31536000 if IS_PRODUCTION else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = IS_PRODUCTION
+SECURE_HSTS_PRELOAD = IS_PRODUCTION
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
+if IS_PRODUCTION:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # OPEN-METEO CONFIGURATION
-OPENMETEO_BASE_URL = "https://api.open-meteo.com/v1/forecast"
+OPENMETEO_BASE_URL = env.str(
+    "OPENMETEO_BASE_URL",
+    default="https://api.open-meteo.com/v1/forecast",
+)
 
 # NEWS API CONFIGURATION
 NEWSAPI_KEY = env.str("NEWSAPI_KEY", default="")
 NEWSAPI_BASE_URL = env.str(
     "NEWSAPI_BASE_URL", default="https://newsapi.org/v2/everything"
 )
+
+EXTERNAL_API_TIMEOUT_SECONDS = env.int("EXTERNAL_API_TIMEOUT_SECONDS", default=12)
+EXTERNAL_API_RETRIES = env.int("EXTERNAL_API_RETRIES", default=2)
+EXTERNAL_API_RETRY_BACKOFF_SECONDS = env.float(
+    "EXTERNAL_API_RETRY_BACKOFF_SECONDS", default=0.5
+)
+
+SESSION_INACTIVITY_MINUTES = env.int("SESSION_INACTIVITY_MINUTES", default=30)
 
 # RECOMMENDER CONFIGURATION
 # Offline benchmark winner by default: 60% context fit, 40% history affinity.
@@ -234,10 +269,10 @@ UNFOLD_CONFIG = {
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": r"C:\Users\PC\AppData\Roaming\DBeaverData\workspace6\.metadata\sample-database-sqlite-1\Chinook.db",
-    }
+    "default": env.db(
+        "DATABASE_URL",
+        default=f"sqlite:///{(BASE_DIR / 'db.sqlite3').as_posix()}",
+    )
 }
 
 # Optional database configuration tuning
