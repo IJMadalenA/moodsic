@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("cities_light", "0014_alter_city_search_names"),
+        ("cities_light", "0013_alter_city_alternate_names_alter_city_country_and_more"),
         ("users", "0005_user_access_token_user_refresh_token_and_more"),
     ]
 

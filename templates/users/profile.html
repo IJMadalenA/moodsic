@@ -1,25 +1,166 @@
 {% extends "base.html" %}
 
+{% block title %}Mi Perfil · MoodSic{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-    <h1>Perfil de Usuario</h1>
-    <div class="card">
-        <div class="card-body">
-            <h5 class="card-title">{{ user.email }}</h5>
-            <div class="card-text">
-                <p><strong>Username:</strong> {{ user.username }}</p>
-                {% if user.spotify_id %}
-                    <p><strong>Spotify ID:</strong> {{ user.spotify_id }}</p>
-                    {% if user.avatar_url %}
-                        <p><strong>Avatar:</strong> <img src="{{ user.avatar_url }}" alt="Avatar" width="100" class="img-thumbnail"></p>
-                    {% endif %}
-                    <p><span class="badge bg-success">Conectado con Spotify</span></p>
-                {% else %}
-                    <p><span class="badge bg-warning text-dark">No conectado con Spotify</span></p>
-                {% endif %}
-            </div>
-            <a href="{% url 'account_logout' %}" class="btn btn-danger">Cerrar Sesión</a>
+<div class="shell" style="max-width:700px;">
+
+  <h2 style="margin-bottom:24px;">Mi perfil</h2>
+
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="alert alert--{{ msg.tags }}" style="
+        padding:12px 16px; border-radius:8px; margin-bottom:16px;
+        background:{% if 'error' in msg.tags %}#7f1d1d{% else %}var(--accent-soft){% endif %};
+        border:1px solid {% if 'error' in msg.tags %}#ef4444{% else %}var(--accent){% endif %};
+        color:var(--text);">
+        {{ msg }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Tarjeta: cuenta -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-body">
+      <h5 style="margin-top:0;">Cuenta</h5>
+      <p style="margin:6px 0;"><strong>Usuario:</strong> {{ user.username }}</p>
+      <p style="margin:6px 0;"><strong>Email:</strong> {{ user.email }}</p>
+
+      {% if user.spotify_id %}
+        <div style="display:flex;align-items:center;gap:12px;margin-top:10px;">
+          {% if user.avatar_url %}
+            <img src="{{ user.avatar_url }}" alt="Avatar" width="48"
+                 style="border-radius:50%;border:2px solid var(--accent);">
+          {% endif %}
+          <span class="badge" style="background:var(--accent);color:#000;padding:4px 10px;border-radius:20px;font-size:.85rem;">
+            ✓ Conectado con Spotify
+          </span>
         </div>
+      {% else %}
+        <span class="badge" style="background:var(--warning);color:#000;padding:4px 10px;border-radius:20px;font-size:.85rem;">
+          Sin conexión con Spotify
+        </span>
+      {% endif %}
     </div>
+  </div>
+
+  <!-- Tarjeta: ciudad -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-body">
+      <h5 style="margin-top:0;">📍 Ciudad para el clima</h5>
+      <p style="color:var(--muted);font-size:.9rem;margin-top:0;">
+        MoodSic usa tu ciudad para obtener el clima actual y personalizar la música con el contexto ambiental.
+      </p>
+
+      {% if user.city %}
+        <p style="margin:0 0 14px;">
+          <strong>Ciudad actual:</strong>
+          {{ user.city.name }}{% if user.city.country %}, {{ user.city.country.name }}{% endif %}
+        </p>
+      {% else %}
+        <p style="color:var(--warning);margin:0 0 14px;">
+          ⚠️ Sin ciudad configurada — se usan datos de Madrid como respaldo.
+        </p>
+      {% endif %}
+
+      <form method="post" action="{% url 'users:update_profile' %}" id="city-form">
+        {% csrf_token %}
+        <input type="hidden" name="city_id" id="city-id-input" value="{{ user.city.pk|default:'' }}">
+
+        <label for="city-search" style="display:block;margin-bottom:6px;font-size:.9rem;">
+          Buscar ciudad:
+        </label>
+        <div style="position:relative;margin-bottom:12px;">
+          <input
+            type="text"
+            id="city-search"
+            placeholder="Escribe el nombre de tu ciudad..."
+            autocomplete="off"
+            value="{{ user.city.name|default:'' }}"
+            style="
+              width:100%;padding:10px 14px;border-radius:8px;
+              border:1px solid var(--border);background:var(--panel-soft);
+              color:var(--text);font-size:1rem;outline:none;
+            "
+          >
+          <ul id="city-suggestions" style="
+            display:none;position:absolute;top:100%;left:0;right:0;z-index:100;
+            background:var(--panel);border:1px solid var(--border);border-radius:0 0 8px 8px;
+            list-style:none;margin:0;padding:0;max-height:200px;overflow-y:auto;
+          "></ul>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+          <button type="submit" id="save-city-btn" style="
+            background:var(--accent);color:#000;border:none;border-radius:8px;
+            padding:10px 20px;font-size:.95rem;cursor:pointer;font-weight:600;
+          ">
+            Guardar ciudad
+          </button>
+          {% if user.city %}
+            <button type="submit" onclick="document.getElementById('city-id-input').value='';" style="
+              background:transparent;color:var(--muted);border:1px solid var(--border);
+              border-radius:8px;padding:10px 20px;font-size:.95rem;cursor:pointer;
+            ">
+              Quitar ciudad
+            </button>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <a href="{% url 'account_logout' %}" style="
+    display:inline-block;background:#7f1d1d;color:#fff;border:none;border-radius:8px;
+    padding:10px 20px;font-size:.95rem;text-decoration:none;
+  ">
+    Cerrar sesión
+  </a>
 </div>
+
+<script>
+(function () {
+  const searchInput = document.getElementById('city-search');
+  const suggestions = document.getElementById('city-suggestions');
+  const hiddenInput = document.getElementById('city-id-input');
+  const searchUrl = "{% url 'users:search_cities' %}";
+
+  let debounceTimer = null;
+
+  searchInput.addEventListener('input', function () {
+    clearTimeout(debounceTimer);
+    const q = this.value.trim();
+    if (q.length < 2) { suggestions.style.display = 'none'; return; }
+
+    debounceTimer = setTimeout(() => {
+      fetch(searchUrl + '?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+          suggestions.innerHTML = '';
+          if (!data.length) { suggestions.style.display = 'none'; return; }
+          data.forEach(city => {
+            const li = document.createElement('li');
+            li.textContent = city.name + (city.country ? ', ' + city.country : '');
+            li.style.cssText = 'padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.9rem;';
+            li.addEventListener('mouseover', () => li.style.background = 'var(--panel-soft)');
+            li.addEventListener('mouseout', () => li.style.background = '');
+            li.addEventListener('click', () => {
+              searchInput.value = city.name + (city.country ? ', ' + city.country : '');
+              hiddenInput.value = city.id;
+              suggestions.style.display = 'none';
+            });
+            suggestions.appendChild(li);
+          });
+          suggestions.style.display = 'block';
+        });
+    }, 250);
+  });
+
+  // Cerrar desplegable al clicar fuera
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('#city-form')) suggestions.style.display = 'none';
+  });
+})();
+</script>
 {% endblock %}
+
