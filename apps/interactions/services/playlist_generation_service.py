@@ -5,6 +5,7 @@ Servicio de Generación de Playlists usando el Agente RL.
 import logging
 import uuid
 from collections import Counter
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -87,8 +88,11 @@ class PlaylistGenerationService:
         )
 
         try:
+            self.close_stale_sessions(user=user)
+
             # Crear sesión única
             session_id = str(uuid.uuid4())
+            self._ensure_active_session(user=user, session_id=session_id)
 
             # Obtener tracks disponibles y registrar su procedencia
             available_tracks, source_meta = self._get_available_tracks_with_meta(user)
@@ -276,6 +280,11 @@ class PlaylistGenerationService:
         )
 
         try:
+            self.close_stale_sessions(user=user)
+            session = self._ensure_active_session(
+                user=user, session_id=session_id, weather_id=weather_id
+            )
+
             # Obtener contexto para calcular reward
             weather_context = None
             if weather_id:
@@ -318,6 +327,7 @@ class PlaylistGenerationService:
                 news_ids=news_ids or [],
                 session_id=session_id,
             )
+            session.calculate_metrics()
 
             # Guardar la experiencia en el replay buffer del agente para entrenamient futuro
             news_contexts = []
@@ -351,6 +361,72 @@ class PlaylistGenerationService:
         except Exception as e:
             logger.error(f"Error registrando interacción: {e}", exc_info=True)
             raise
+
+    def close_stale_sessions(self, user: User | None = None) -> int:
+        """Close sessions that have been inactive for too long."""
+        from apps.interactions.models import Interaction, InteractionSession
+
+        timeout_minutes = int(getattr(settings, "SESSION_INACTIVITY_MINUTES", 30))
+        timeout_minutes = max(1, timeout_minutes)
+        cutoff = timezone.now() - timedelta(minutes=timeout_minutes)
+
+        queryset = InteractionSession.objects.filter(is_active=True)
+        if user is not None:
+            queryset = queryset.filter(user=user)
+
+        closed = 0
+        for session in queryset:
+            last_interaction = (
+                Interaction.objects.filter(session_id=session.session_id)
+                .order_by("-started_at")
+                .values_list("started_at", flat=True)
+                .first()
+            )
+            reference_time = last_interaction or session.updated_at or session.started_at
+            if reference_time and reference_time <= cutoff:
+                session.is_active = False
+                if not session.ended_at:
+                    session.ended_at = reference_time
+                session.save(update_fields=["is_active", "ended_at", "updated_at"])
+                closed += 1
+        return closed
+
+    @staticmethod
+    def _ensure_active_session(
+        user: User,
+        session_id: str,
+        weather_id: int | None = None,
+    ):
+        from apps.interactions.models import InteractionSession
+
+        session, created = InteractionSession.objects.get_or_create(
+            session_id=session_id,
+            defaults={
+                "user": user,
+                "weather_id": weather_id,
+                "is_active": True,
+            },
+        )
+
+        if not created:
+            update_fields = []
+            if session.user_id != user.id:
+                session.user = user
+                update_fields.append("user")
+            if weather_id and not session.weather_id:
+                session.weather_id = weather_id
+                update_fields.append("weather_id")
+            if not session.is_active:
+                session.is_active = True
+                update_fields.append("is_active")
+            if session.ended_at is not None:
+                session.ended_at = None
+                update_fields.append("ended_at")
+            if update_fields:
+                update_fields.append("updated_at")
+                session.save(update_fields=update_fields)
+
+        return session
 
     def get_user_stats(self, user: User) -> dict:
         """
@@ -408,6 +484,17 @@ class PlaylistGenerationService:
         Obtiene tracks disponibles para seleccionar y registra su procedencia.
         """
         max_tracks = min(limit, self.agent.action_dim)
+
+        # Para usuarios conectados a Spotify, intentar primero catálogo real.
+        # Si falla, usar catálogo local como respaldo.
+        if getattr(user, "is_spotify_connected", False):
+            spotify_tracks = self._hydrate_tracks_from_spotify(user, limit=max_tracks)
+            if spotify_tracks:
+                return spotify_tracks[:max_tracks], {
+                    "used_local_catalog": False,
+                    "used_spotify_catalog_fallback": True,
+                }
+
         local_tracks = list(
             Track.objects.prefetch_related("artists").all()[:max_tracks]
         )
@@ -441,8 +528,7 @@ class PlaylistGenerationService:
 
             # Combine liked tracks and top tracks for more variety
             half_limit = limit // 2
-            liked_raw = spotify_service.get_user_liked_tracks(limit=half_limit) or []
-            liked_tracks = [item["track"] for item in liked_raw if "track" in item]
+            liked_tracks = spotify_service.get_user_liked_tracks(limit=half_limit) or []
 
             top_tracks = (
                 spotify_service.get_top_tracks(limit=limit - len(liked_tracks)) or []

@@ -241,6 +241,8 @@ def get_dashboard_metrics(request):
             status=403,
         )
 
+    get_playlist_generation_service().close_stale_sessions()
+
     # Agregaciones
     total_interactions = Interaction.objects.count()
     total_users = User.objects.filter(interactions__isnull=False).distinct().count()

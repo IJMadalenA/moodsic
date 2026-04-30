@@ -146,8 +146,8 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.SUCCESS(f"   ✅ Modelo benchmark: {model_path}")
                 )
-
-            model_path = self._resolve_model_path(model_path)
+            else:
+                model_path = self._resolve_model_path(model_path)
             self.stdout.write(f"   📁 Modelo: {model_path}")
 
             self.stdout.write(
