@@ -37,6 +37,16 @@ class Track(models.Model):
     uri = models.CharField(
         max_length=255, blank=True, default="", verbose_name=_("URI")
     )
+    genre = models.CharField(
+        max_length=100, blank=True, default="", verbose_name=_("Género")
+    )
+    subgenre = models.CharField(
+        max_length=100, blank=True, default="", verbose_name=_("Subgénero")
+    )
+    is_playable = models.BooleanField(default=True, verbose_name=_("Reproducible"))
+    analysis_url = models.URLField(
+        max_length=500, blank=True, default="", verbose_name=_("URL de análisis")
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -15,7 +15,9 @@ class Playlist(models.Model):
     )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="playlists",
         verbose_name=_("Usuario"),
     )
@@ -46,7 +48,8 @@ class Playlist(models.Model):
         ordering = ("-updated_at", "name")
 
     def __str__(self):
-        return f"{self.name} ({self.user.username})"
+        username = self.user.username if self.user else "system"
+        return f"{self.name} ({username})"
 
 
 class PlaylistTrack(models.Model):

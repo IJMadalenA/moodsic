@@ -20,6 +20,7 @@ httpx
 # Data Processing
 # ==========================
 joblib
+langdetect
 
 # ==========================
 # Dashboard / Visualization
@@ -39,6 +40,11 @@ psycopg[binary]
 # Environment & Config
 # ==========================
 python-dotenv
+
+# ==========================
+# CSV Unification & ETL
+# ==========================
+rapidfuzz
 redis
 
 # ==========================
@@ -62,3 +68,4 @@ spotipy
 # ==========================
 tensorflow
 torch
+tqdm
