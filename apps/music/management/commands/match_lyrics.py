@@ -1,12 +1,11 @@
 """
-Vincula TrackLyrics unmatched a Tracks usando exact match + fuzzy con pre-filtro
-por artista. Solo procesa registros con track__isnull=True.
+Vincula TrackLyrics unmatched a Tracks usando exact match + fuzzy global.
+Optimizado: sin indice de artista (M2M lento con 1.16M tracks).
 """
 
 from __future__ import annotations
 
 import re
-from collections import defaultdict
 
 from django.core.management.base import BaseCommand
 
@@ -39,10 +38,17 @@ def _normalize(text: str) -> str:
 class Command(BaseCommand):
     help = "Vincula TrackLyrics unmatched a Tracks via exact + fuzzy matching"
 
+    def add_arguments(self, parser):
+        parser.add_argument("--limit", type=int, default=0, help="Limitar a N letras")
+        parser.add_argument("--exact-only", action="store_true", help="Solo exact match, sin fuzzy")
+
     def handle(self, *args, **options):
         if not RAPIDFUZZ_AVAILABLE:
             self.stdout.write(self.style.ERROR("rapidfuzz no instalado"))
             return
+
+        limit = options["limit"]
+        exact_only = options["exact_only"]
 
         unmatched_count = TrackLyrics.objects.filter(track__isnull=True).count()
         self.stdout.write(f"Letras sin vincular: {unmatched_count:,}")
@@ -51,25 +57,18 @@ class Command(BaseCommand):
             self.stdout.write("Nada que vincular.")
             return
 
-        self.stdout.write("Construyendo indices...")
+        self.stdout.write("Construyendo indice de canciones...")
         exact_index: dict[str, int] = {}
-        artist_index: dict[str, list[tuple[int, str]]] = defaultdict(list)
-
         for tid, tname in Track.objects.values_list("id", "name").iterator(chunk_size=10000):
             if tname:
                 norm = _normalize(tname)
                 if norm:
                     exact_index[norm] = tid
+        self.stdout.write(f"  Indice: {len(exact_index):,} canciones unicas")
 
-        for tid, tname, aname in Track.objects.values_list(
-            "id", "name", "artists__name"
-        ).iterator(chunk_size=10000):
-            if tname and aname:
-                norm_artist = _normalize(aname)
-                artist_index[norm_artist].append((tid, _normalize(tname)))
-
-        self.stdout.write(f"  Exact index: {len(exact_index):,} canciones")
-        self.stdout.write(f"  Artist index: {len(artist_index):,} artistas")
+        if not exact_only:
+            names_list = list(exact_index.keys())
+            ids_list = list(exact_index.values())
 
         exact_matched = 0
         fuzzy_matched = 0
@@ -78,61 +77,46 @@ class Command(BaseCommand):
         processed = 0
         lyrics_to_update = []
 
-        for lyric in TrackLyrics.objects.filter(track__isnull=True).iterator(
-            chunk_size=CHUNK_SIZE
-        ):
+        qs = TrackLyrics.objects.filter(track__isnull=True)
+        if limit:
+            qs = qs[:limit]
+
+        for lyric in qs.iterator(chunk_size=CHUNK_SIZE):
             processed += 1
             norm_song = _normalize(lyric.song_name)
-            norm_artist = _normalize(lyric.artist_name)
             best_track_id = None
             best_score = 0
 
+            # Fase 1: exact match
             if norm_song in exact_index:
                 best_track_id = exact_index[norm_song]
                 best_score = 100
                 exact_matched += 1
-            elif norm_artist in artist_index:
-                candidates = artist_index[norm_artist]
-                if candidates:
-                    songs_in_artist = [name for _, name in candidates]
-                    ids_in_artist = [tid for tid, _ in candidates]
-                    result = process.extractOne(
-                        norm_song,
-                        songs_in_artist,
-                        scorer=fuzz.token_sort_ratio,
-                        score_cutoff=MATCH_THRESHOLD_LOW,
-                    )
-                    if result:
-                        _, best_score, matched_idx = result
-                        best_track_id = ids_in_artist[matched_idx]
 
-            if not best_track_id and exact_index:
-                all_songs = list(exact_index.keys())
-                all_ids = list(exact_index.values())
+            # Fase 2: fuzzy match global
+            elif not exact_only and names_list:
                 result = process.extractOne(
                     norm_song,
-                    all_songs,
+                    names_list,
                     scorer=fuzz.token_sort_ratio,
-                    score_cutoff=MATCH_THRESHOLD_HIGH,
+                    score_cutoff=MATCH_THRESHOLD_LOW,
                 )
                 if result:
                     _, best_score, matched_idx = result
-                    best_track_id = all_ids[matched_idx]
-
-            if best_track_id:
-                if best_score >= MATCH_THRESHOLD_HIGH:
-                    lyric.track_id = best_track_id
-                    lyric.match_score = best_score
-                    lyric.match_status = "matched"
-                    if best_score < 100:
+                    best_track_id = ids_list[matched_idx]
+                    if best_score >= MATCH_THRESHOLD_HIGH:
                         fuzzy_matched += 1
+                    else:
+                        fuzzy_reviewed += 1
                 else:
-                    lyric.track_id = best_track_id
-                    lyric.match_score = best_score
-                    lyric.match_status = "reviewed"
-                    fuzzy_reviewed += 1
+                    still_unmatched += 1
             else:
                 still_unmatched += 1
+
+            if best_track_id:
+                lyric.track_id = best_track_id
+                lyric.match_score = best_score
+                lyric.match_status = "matched" if best_score >= MATCH_THRESHOLD_HIGH else "reviewed"
 
             lyrics_to_update.append(lyric)
 
