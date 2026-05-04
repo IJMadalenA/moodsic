@@ -27,8 +27,9 @@ class TrackAudioFeaturesInline(TabularInline):
 
 @admin.register(Track)
 class TrackAdmin(ModelAdmin):
-    list_display = ("name", "get_artists", "album", "popularity", "spotify_id")
-    search_fields = ("name", "spotify_id", "artists__name", "album__name")
+    list_display = ("name", "get_artists", "album", "genre", "subgenre", "is_playable", "popularity", "spotify_id")
+    search_fields = ("name", "spotify_id", "artists__name", "album__name", "genre")
+    list_filter = ("genre", "is_playable")
     filter_horizontal = ("artists",)
     inlines = (TrackAudioFeaturesInline,)
     readonly_fields = ("created_at", "updated_at")
