@@ -1,0 +1,255 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0
+django: version: 6.0.4, settings: config.settings (from ini)
+rootdir: /home/ijmadalena/PycharmProjects/moodsic
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+testpaths: apps, ml
+plugins: django-4.12.0, mock-3.15.1, cov-7.1.0, anyio-4.13.0
+collected 220 items
+
+apps/context/tests/test_admin_robust.py .                                [  0%]
+apps/context/tests/test_news_service.py ...                              [  1%]
+apps/context/tests/test_seed_synthetic_context.py ..                     [  2%]
+apps/context/tests/test_weather.py ......                                [  5%]
+apps/interactions/tests/test_api.py ..............                       [ 11%]
+apps/interactions/tests/test_api_extended.py .....                       [ 14%]
+apps/interactions/tests/test_commands.py ............                    [ 19%]
+apps/interactions/tests/test_commands_robust.py ......                   [ 22%]
+apps/interactions/tests/test_models.py .................                 [ 30%]
+apps/interactions/tests/test_pg_extended.py ...                          [ 31%]
+apps/interactions/tests/test_pg_service_robustness.py ....               [ 33%]
+apps/interactions/tests/test_playlist_api_extended.py .....              [ 35%]
+apps/interactions/tests/test_playlist_generation_service.py ...          [ 36%]
+apps/interactions/tests/test_reward_service.py ..                        [ 37%]
+apps/interactions/tests/test_reward_service_extended.py ......           [ 40%]
+apps/interactions/tests/test_views_robust.py ....                        [ 42%]
+apps/music/tests/test_models.py .....                                    [ 44%]
+apps/music/tests/test_music_briefing_extended.py .                       [ 45%]
+apps/music/tests/test_music_briefing_service.py ...                      [ 46%]
+apps/music/tests/test_spotify_integration.py ...........                 [ 51%]
+apps/music/tests/test_spotify_playlist_management.py .....               [ 53%]
+apps/music/tests/test_spotify_service.py .....                           [ 55%]
+apps/music/tests/test_spotify_service_enhancements.py ..                 [ 56%]
+apps/music/tests/test_spotify_service_extended.py ........               [ 60%]
+apps/music/tests/test_spotify_service_robustness.py ..................   [ 68%]
+apps/music/tests/test_verify_spotify_robust.py ..                        [ 69%]
+apps/users/tests/test_adapter.py ..                                      [ 70%]
+apps/users/tests/test_adapter_robust.py FF                               [ 71%]
+apps/users/tests/test_models.py ...                                      [ 72%]
+apps/users/tests/test_views.py ...                                       [ 74%]
+apps/users/tests/test_views_extended.py ...                              [ 75%]
+ml/tests/test_state_builder.py ....                                      [ 77%]
+ml/tests/test_training.py .......                                        [ 80%]
+apps/context/tests/test_mood_service.py .........                        [ 84%]
+apps/context/tests/test_news_service.py ..                               [ 85%]
+ml/tests/test_agent.py ...............                                   [ 92%]
+ml/tests/test_reward.py .........                                        [ 96%]
+ml/tests/test_state_builder.py ........
+ERROR: Coverage failure: total of 85 is less than fail-under=93
+                                                                         [100%]
+
+=================================== FAILURES ===================================
+__________________ TestUsersAdapter.test_save_user_with_token __________________
+apps/users/tests/test_adapter_robust.py:19: in test_save_user_with_token
+    sociallogin = SocialLogin(user=user, account=account, token=token)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/allauth/socialaccount/models.py:232: in __init__
+    assert token.account is None or token.account == account  # nosec
+           ^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/django/db/models/fields/related_descriptors.py:267: in __get__
+    raise self.RelatedObjectDoesNotExist(
+E   allauth.socialaccount.models.SocialToken.account.RelatedObjectDoesNotExist: SocialToken has no account.. Did you mean: 'account_id'?
+___________________ TestUsersAdapter.test_save_user_no_token ___________________
+apps/users/tests/test_adapter_robust.py:47: in test_save_user_no_token
+    saved_user = adapter.save_user(request, sociallogin)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+apps/users/adapter.py:15: in save_user
+    user = super().save_user(request, sociallogin, form)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/allauth/socialaccount/adapter.py:116: in save_user
+    sociallogin.save(request)
+.venv/lib/python3.12/site-packages/allauth/socialaccount/models.py:325: in save
+    setup_user_email(request, user, self.email_addresses)
+.venv/lib/python3.12/site-packages/allauth/account/utils.py:211: in setup_user_email
+    stashed_email = adapter.unstash_verified_email(request)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/allauth/account/adapter.py:119: in unstash_verified_email
+    ret = request.session.get("account_verified_email")
+          ^^^^^^^^^^^^^^^
+E   AttributeError: 'WSGIRequest' object has no attribute 'session'
+----------------------------- Captured stdout call -----------------------------
+--- DEBUG ADAPTER: Inicio del proceso de guardado ---
+--- ❌ ERROR CRÍTICO EN ADAPTER: 'WSGIRequest' object has no attribute 'session' ---
+------------------------------ Captured log call -------------------------------
+ERROR    apps.users.adapter:adapter.py:100 Fallo en save_user: 'WSGIRequest' object has no attribute 'session'
+Traceback (most recent call last):
+  File "/home/ijmadalena/PycharmProjects/moodsic/apps/users/adapter.py", line 15, in save_user
+    user = super().save_user(request, sociallogin, form)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ijmadalena/PycharmProjects/moodsic/.venv/lib/python3.12/site-packages/allauth/socialaccount/adapter.py", line 116, in save_user
+    sociallogin.save(request)
+  File "/home/ijmadalena/PycharmProjects/moodsic/.venv/lib/python3.12/site-packages/allauth/socialaccount/models.py", line 325, in save
+    setup_user_email(request, user, self.email_addresses)
+  File "/home/ijmadalena/PycharmProjects/moodsic/.venv/lib/python3.12/site-packages/allauth/account/utils.py", line 211, in setup_user_email
+    stashed_email = adapter.unstash_verified_email(request)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ijmadalena/PycharmProjects/moodsic/.venv/lib/python3.12/site-packages/allauth/account/adapter.py", line 119, in unstash_verified_email
+    ret = request.session.get("account_verified_email")
+          ^^^^^^^^^^^^^^^
+AttributeError: 'WSGIRequest' object has no attribute 'session'
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.3-final-0 ________________
+
+Name                                                                          Stmts   Miss  Cover   Missing
+-----------------------------------------------------------------------------------------------------------
+apps/__init__.py                                                                  0      0   100%
+apps/conftest.py                                                                 18      0   100%
+apps/context/__init__.py                                                          0      0   100%
+apps/context/admin/__init__.py                                                    4      0   100%
+apps/context/admin/cities_light_admin.py                                         44      9    80%   15-16, 54, 61-79
+apps/context/admin/news_context.py                                               20      5    75%   13, 20-23
+apps/context/admin/weather_context.py                                            60     28    53%   31, 66, 68, 70, 95-124, 131-146
+apps/context/apps.py                                                              7      0   100%
+apps/context/management/__init__.py                                               0      0   100%
+apps/context/management/commands/__init__.py                                      0      0   100%
+apps/context/management/commands/fetch_news_context.py                           12      2    83%   21-27
+apps/context/management/commands/seed_synthetic_context.py                       52      2    96%   128-129
+apps/context/management/commands/setup_geo.py                                    17      3    82%   30-34
+apps/context/migrations/0001_initial.py                                           6      0   100%
+apps/context/migrations/0002_alter_weathercontext_options_and_more.py             4      0   100%
+apps/context/migrations/0003_alter_weathercontext_options.py                      4      0   100%
+apps/context/migrations/0004_newscontext.py                                       5      0   100%
+apps/context/migrations/__init__.py                                               0      0   100%
+apps/context/models/__init__.py                                                   3      0   100%
+apps/context/models/news_context.py                                              22      1    95%   33
+apps/context/models/weather_context.py                                           40      0   100%
+apps/context/services/__init__.py                                                 0      0   100%
+apps/context/services/mood_service.py                                            34      0   100%
+apps/context/services/news_service.py                                           102     13    87%   84-92, 100, 128, 160, 187, 192-193, 205
+apps/context/services/weather_service.py                                         37      3    92%   111, 116-117
+apps/context/tests/__init__.py                                                    0      0   100%
+apps/context/tests/test_admin_robust.py                                          13      0   100%
+apps/context/tests/test_mood_service.py                                          49      0   100%
+apps/context/tests/test_news_service.py                                          36      0   100%
+apps/context/tests/test_seed_synthetic_context.py                                19      0   100%
+apps/context/tests/test_weather.py                                               72      0   100%
+apps/dashboard/__init__.py                                                        0      0   100%
+apps/dashboard/apps.py                                                            4      0   100%
+apps/dashboard/urls.py                                                            4      0   100%
+apps/dashboard/views/__init__.py                                                 14      0   100%
+apps/interactions/__init__.py                                                     0      0   100%
+apps/interactions/admin/__init__.py                                              27      7    74%   92, 96, 137-142
+apps/interactions/apps.py                                                         4      0   100%
+apps/interactions/management/__init__.py                                          0      0   100%
+apps/interactions/management/commands/__init__.py                                 0      0   100%
+apps/interactions/management/commands/benchmark_matrix.py                       292     99    66%   127, 142, 183-184, 222-223, 246-253, 297, 305, 308-309, 311, 317-322, 330, 332, 339-340, 342, 348, 354, 359-379, 386-405, 429-474, 489, 492-493, 503-507, 560, 598, 603-640
+apps/interactions/management/commands/benchmark_summary.py                      164     12    93%   72, 74, 76, 84, 93, 184, 301, 304, 349, 359-360, 378
+apps/interactions/management/commands/collect_interactions.py                    94     55    41%   82-84, 100-147, 151-167, 182-193, 197-218
+apps/interactions/management/commands/evaluate_model.py                         108     37    66%   110-131, 136-146, 161, 214-219, 227-234, 240, 243-248, 253, 267-275
+apps/interactions/management/commands/moodsic_help.py                            12      2    83%   143-144
+apps/interactions/management/commands/seed_synthetic_interactions.py             66      4    94%   54, 56, 58, 108
+apps/interactions/management/commands/sync_spotify_tracks.py                    132     52    61%   90-92, 99-105, 110, 121-122, 126-127, 129-130, 139-142, 165-166, 177, 189-190, 224-225, 228-237, 245, 251-276, 295-305
+apps/interactions/management/commands/train_agent.py                             73     18    75%   132-153, 191-193, 199-204, 216-220
+apps/interactions/migrations/0001_initial.py                                      7      0   100%
+apps/interactions/migrations/__init__.py                                          0      0   100%
+apps/interactions/models/__init__.py                                              2      0   100%
+apps/interactions/models/interaction.py                                          64      8    88%   234-244
+apps/interactions/schemas.py                                                     78      0   100%
+apps/interactions/services/__init__.py                                            0      0   100%
+apps/interactions/services/playlist_generation_service.py                       343     71    79%   105, 139-141, 197-214, 241-243, 290-291, 351-353, 427, 435, 440, 454-455, 463-465, 475, 482-483, 514-515, 531, 533, 537, 561-562, 603-629, 681, 720, 759-760, 764, 825, 873-877
+apps/interactions/services/reward_service.py                                     65      2    97%   61, 105
+apps/interactions/tests/__init__.py                                               0      0   100%
+apps/interactions/tests/test_api.py                                             118      0   100%
+apps/interactions/tests/test_api_extended.py                                     49      0   100%
+apps/interactions/tests/test_commands.py                                         88      0   100%
+apps/interactions/tests/test_commands_robust.py                                  62      0   100%
+apps/interactions/tests/test_models.py                                           96      0   100%
+apps/interactions/tests/test_pg_extended.py                                      36      0   100%
+apps/interactions/tests/test_pg_service_robustness.py                            38      0   100%
+apps/interactions/tests/test_playlist_api_extended.py                            61      0   100%
+apps/interactions/tests/test_playlist_generation_service.py                      50      0   100%
+apps/interactions/tests/test_reward_service.py                                   27      0   100%
+apps/interactions/tests/test_reward_service_extended.py                          48      0   100%
+apps/interactions/tests/test_views_robust.py                                     59      4    93%   25-26, 82-83
+apps/interactions/urls.py                                                        26     15    42%   15-65
+apps/interactions/views/__init__.py                                               0      0   100%
+apps/interactions/views/api.py                                                   93     39    58%   73-107, 138, 164-198, 229, 321-327, 332-342, 347-357
+apps/interactions/views/playlist_api.py                                         194     81    58%   152-153, 187, 216-218, 241, 271-273, 291, 299, 310, 352-356, 369-392, 403-465, 496, 504, 512-515, 521, 537-539, 553, 593-605, 620-622
+apps/music/__init__.py                                                            0      0   100%
+apps/music/admin/__init__.py                                                      5      0   100%
+apps/music/admin/album.py                                                         9      0   100%
+apps/music/admin/artist.py                                                        8      0   100%
+apps/music/admin/playlist.py                                                     14      0   100%
+apps/music/admin/track.py                                                        18      1    94%   37
+apps/music/apps.py                                                                4      0   100%
+apps/music/management/__init__.py                                                 0      0   100%
+apps/music/management/commands/__init__.py                                        0      0   100%
+apps/music/management/commands/verify_spotify.py                                 23      5    78%   19-33
+apps/music/migrations/0001_initial.py                                             7      0   100%
+apps/music/migrations/0002_alter_track_preview_url.py                             4      0   100%
+apps/music/migrations/__init__.py                                                 0      0   100%
+apps/music/models/__init__.py                                                     5      0   100%
+apps/music/models/album.py                                                       20      0   100%
+apps/music/models/artist.py                                                      17      0   100%
+apps/music/models/playlist.py                                                    33      1    97%   72
+apps/music/models/track.py                                                       43      0   100%
+apps/music/services/__init__.py                                                   0      0   100%
+apps/music/services/music_briefing_service.py                                    13      0   100%
+apps/music/services/playlist_creator_service.py                                  30      8    73%   59-76, 87
+apps/music/services/spotify_music_service.py                                    200      2    99%   272, 307
+apps/music/tests/__init__.py                                                      0      0   100%
+apps/music/tests/test_models.py                                                  42      0   100%
+apps/music/tests/test_music_briefing_extended.py                                 16      0   100%
+apps/music/tests/test_music_briefing_service.py                                  30      0   100%
+apps/music/tests/test_spotify_integration.py                                    176      0   100%
+apps/music/tests/test_spotify_playlist_management.py                             68      0   100%
+apps/music/tests/test_spotify_service.py                                         64      0   100%
+apps/music/tests/test_spotify_service_enhancements.py                            33      0   100%
+apps/music/tests/test_spotify_service_extended.py                                81      0   100%
+apps/music/tests/test_spotify_service_robustness.py                             156      0   100%
+apps/music/tests/test_verify_spotify_robust.py                                   16      0   100%
+apps/users/__init__.py                                                            0      0   100%
+apps/users/adapter.py                                                            61     21    66%   19-20, 30-36, 50, 57-59, 64-65, 67-68, 71-73, 90-92
+apps/users/admin/__init__.py                                                      2      0   100%
+apps/users/admin/user.py                                                          9      0   100%
+apps/users/apps.py                                                                4      0   100%
+apps/users/migrations/0001_initial.py                                             8      0   100%
+apps/users/migrations/0002_alter_user_avatar_url.py                               4      0   100%
+apps/users/migrations/0003_alter_user_spotify_id.py                               4      0   100%
+apps/users/migrations/0004_alter_user_spotify_id.py                               4      0   100%
+apps/users/migrations/0005_user_access_token_user_refresh_token_and_more.py       4      0   100%
+apps/users/migrations/__init__.py                                                 0      0   100%
+apps/users/models/__init__.py                                                     2      0   100%
+apps/users/models/user.py                                                        15      0   100%
+apps/users/tests/__init__.py                                                      0      0   100%
+apps/users/tests/test_adapter.py                                                 39      0   100%
+apps/users/tests/test_adapter_robust.py                                          33     11    67%   22-38, 48-50
+apps/users/tests/test_models.py                                                  23      0   100%
+apps/users/tests/test_views.py                                                   28      0   100%
+apps/users/tests/test_views_extended.py                                          30      0   100%
+apps/users/urls.py                                                                4      0   100%
+apps/users/views/__init__.py                                                      2      0   100%
+apps/users/views/profile_view.py                                                  5      0   100%
+config/__init__.py                                                                0      0   100%
+config/settings.py                                                               74      1    99%   118
+config/urls.py                                                                    3      0   100%
+ml/__init__.py                                                                    0      0   100%
+ml/agent.py                                                                     140     31    78%   258-260, 269-272, 369-374, 383-414
+ml/reward.py                                                                    102     15    85%   134-135, 142, 148-149, 168-169, 185, 187, 203, 220-221, 226-227, 237
+ml/state_builder.py                                                             186     14    92%   118, 121, 266-268, 381, 398, 402, 408, 410, 414, 422, 425-428
+ml/tests/__init__.py                                                              0      0   100%
+ml/tests/test_agent.py                                                           86      0   100%
+ml/tests/test_reward.py                                                          41      0   100%
+ml/tests/test_state_builder.py                                                   68      0   100%
+ml/tests/test_training.py                                                        68      0   100%
+ml/training.py                                                                  320    160    50%   30, 88, 105, 156-165, 172-173, 193-195, 204-220, 242, 244, 248, 301-328, 353-357, 368-399, 408-420, 424-425, 430-477, 483-513, 563, 567-569, 587-596, 638-639, 646-704, 708
+pipelines/__init__.py                                                             0      0   100%
+pipelines/etl_news.py                                                             4      2    50%   16-22
+pipelines/state_pipeline.py                                                      17      1    94%   18
+-----------------------------------------------------------------------------------------------------------
+TOTAL                                                                          5803    845    85%
+FAIL Required test coverage of 93% not reached. Total coverage: 85.44%
+=========================== short test summary info ============================
+FAILED apps/users/tests/test_adapter_robust.py::TestUsersAdapter::test_save_user_with_token - allauth.socialaccount.models.SocialToken.account.RelatedObjectDoesNotExist: SocialToken has no account.. Did you mean: 'account_id'?
+FAILED apps/users/tests/test_adapter_robust.py::TestUsersAdapter::test_save_user_no_token - AttributeError: 'WSGIRequest' object has no attribute 'session'
+======================== 2 failed, 218 passed in 14.10s ========================

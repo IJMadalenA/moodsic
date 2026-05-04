@@ -236,7 +236,7 @@ UNFOLD_CONFIG = {
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": r"C:\Users\PC\AppData\Roaming\DBeaverData\workspace6\.metadata\sample-database-sqlite-1\Chinook.db",
+        "NAME": "db.sqlite3",
     }
 }
 
