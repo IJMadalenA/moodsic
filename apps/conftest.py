@@ -10,6 +10,7 @@ sys.modules["matplotlib.pyplot"] = mock_plt
 
 mock_sklearn = MagicMock()
 sys.modules["sklearn"] = mock_sklearn
+sys.modules["sklearn.neighbors"] = mock_sklearn
 sys.modules["sklearn.metrics"] = mock_sklearn
 sys.modules["sklearn.model_selection"] = mock_sklearn
 sys.modules["sklearn.preprocessing"] = mock_sklearn

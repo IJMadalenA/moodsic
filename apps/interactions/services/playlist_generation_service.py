@@ -18,6 +18,8 @@ from apps.music.models import Album, Artist, Playlist, PlaylistTrack, Track
 from apps.music.services.spotify_music_service import SpotifyMusicService
 from ml.agent import get_agent
 from ml.state_builder import get_state_builder
+from apps.context.services.mood_service import MoodService
+from ml.recommender import get_ml_recommender
 
 logger = logging.getLogger(__name__)
 
@@ -108,16 +110,41 @@ class PlaylistGenerationService:
             count = min(count, len(available_tracks))
 
             user_history = self._get_user_history(user)
-            track_scores = self._score_tracks(
-                available_tracks,
+            recommender = get_ml_recommender()
+
+            # Fit the recommender on available tracks if not already fitted
+            if not recommender._fitted:
+                recommender.fit(available_tracks)
+
+            # Build target mood from weather + news context
+            target_mood = self._build_target_mood(
                 weather_context=weather_context,
-                user_history=user_history,
+                news_sentiment=0.0,
             )
-            available_actions = sorted(
-                range(len(available_tracks)),
-                key=lambda idx: track_scores[idx],
-                reverse=True,
+
+            # ML scoring — returns [(track_idx, similarity_score), ...] sorted desc
+            scored = recommender.score_tracks(
+                available_tracks,
+                target_mood=target_mood,
+                top_k=min(len(available_tracks), self.agent.action_dim),
             )
+
+            # Build ordered list of track indices from ML scores
+            scored_indices = [idx for idx, _ in scored]
+
+            # If ML scored fewer tracks than available, append remaining with heuristic
+            if len(scored_indices) < len(available_tracks):
+                remaining = [
+                    i for i in range(len(available_tracks))
+                    if i not in scored_indices
+                ]
+                fallback = recommender._heuristic_score(
+                    [available_tracks[i] for i in remaining]
+                )
+                fallback_indices = [remaining[idx] for idx, _ in fallback]
+                scored_indices.extend(fallback_indices)
+
+            available_actions = scored_indices
 
             # Construir estado inicial
             news_category = self._normalize_news_category(news_category)
@@ -712,6 +739,23 @@ class PlaylistGenerationService:
             }
             for item in news_items
         ]
+
+    @staticmethod
+    def _build_target_mood(
+        weather_context: dict | None = None,
+        news_sentiment: float = 0.0,
+    ) -> dict:
+        """Build target mood dict from weather context + news sentiment using MoodService."""
+        target = {}
+        if weather_context:
+            main_status = weather_context.get("main_status", "Clouds")
+            mood_params = MoodService.get_combined_params(main_status, news_sentiment)
+            target.update({
+                "target_danceability": mood_params.get("target_danceability", 0.5),
+                "target_energy": mood_params.get("target_energy", 0.5),
+                "target_valence": mood_params.get("target_valence", 0.5),
+            })
+        return target
 
     @staticmethod
     def _normalize_news_category(category: str) -> str:
