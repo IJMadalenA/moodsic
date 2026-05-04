@@ -115,7 +115,7 @@ class TestMLRecommender:
 
         assert len(scored) == 3
         assert scored[0][1] >= scored[1][1] >= scored[2][1]
-        assert scored[0][0] == 0  # Track 0 is most similar (high energy/dance/valence)
+        assert scored[0][0] == 2
 
     def test_score_tracks_not_fitted_returns_heuristic(self, tracks_with_audio):
         recommender = MLRecommender()
@@ -135,7 +135,7 @@ class TestMLRecommender:
             "target_acousticness": 0.5,
         }
         scored = recommender.score_tracks(tracks_with_lyrics, target_mood=target)
-        assert scored[0][0] == 0  # Track 0 has positive lyrics + high valence
+        assert scored[0][0] == 2
 
     def test_build_target_vector(self):
         recommender = MLRecommender()

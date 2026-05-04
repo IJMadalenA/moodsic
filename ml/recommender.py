@@ -127,21 +127,23 @@ class MLRecommender:
             return []
 
         if not self._fitted:
-            return self._heuristic_score(tracks)
+            return self._heuristic_score(tracks, top_k)
 
         target_vec = self.build_target_vector(target_mood, news_sentiment)
         target_scaled = self.scaler.transform(target_vec.reshape(1, -1))
 
         n_samples = self.feature_matrix_.shape[0]
         n_neighbors = min(self.model.n_neighbors, n_samples)
-        distances, _indices = self.model.kneighbors(
+        distances, indices = self.model.kneighbors(
             target_scaled, n_neighbors=n_neighbors, return_distance=True
         )
         similarities = 1.0 - distances[0]
 
         result = []
-        for nn_rank, sim in enumerate(similarities):
-            track_original_idx = self._valid_indices_[nn_rank]
+        for nn_rank in range(len(similarities)):
+            neighbor_idx = indices[0][nn_rank]
+            track_original_idx = self._valid_indices_[neighbor_idx]
+            sim = similarities[nn_rank]
             result.append((track_original_idx, float(sim)))
 
         result.sort(key=lambda x: x[1], reverse=True)
@@ -151,7 +153,7 @@ class MLRecommender:
 
         return result
 
-    def _heuristic_score(self, tracks):
+    def _heuristic_score(self, tracks, top_k=None):
         if not tracks:
             return []
 
@@ -177,4 +179,8 @@ class MLRecommender:
             scores.append((idx, min(max(score, 0.0), 1.0)))
 
         scores.sort(key=lambda x: x[1], reverse=True)
+
+        if top_k is not None:
+            scores = scores[:top_k]
+
         return scores
