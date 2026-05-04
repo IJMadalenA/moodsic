@@ -26,6 +26,7 @@ class RewardCalculator:
         completion_bonus: float = 1.0,
         context_weight: float = 0.2,
         audio_feature_weight: float = 0.15,
+        lyrics_mood_weight: float = 0.1,
     ):
         """
         Inicializa la función de recompensa.
@@ -36,12 +37,14 @@ class RewardCalculator:
             completion_bonus: Bonificación por completar la canción
             context_weight: Peso del contexto en el reward
             audio_feature_weight: Peso de las características de audio
+            lyrics_mood_weight: Peso del sentimiento de la letra
         """
         self.base_reward = base_reward
         self.skip_penalty = skip_penalty
         self.completion_bonus = completion_bonus
         self.context_weight = context_weight
         self.audio_feature_weight = audio_feature_weight
+        self.lyrics_mood_weight = lyrics_mood_weight
 
     def calculate_reward(
         self,
@@ -49,6 +52,7 @@ class RewardCalculator:
         weather_context: dict | None = None,
         track_audio_features: dict | None = None,
         user_history: dict | None = None,
+        lyrics_data: dict | None = None,
     ) -> float:
         """
         Calcula el reward total basándose en múltiples factores.
@@ -95,6 +99,11 @@ class RewardCalculator:
                 track_audio_features, user_history
             )
             reward += consistency_reward * 0.1
+
+        # 5. Ánimo de la letra (NLP sentiment)
+        if lyrics_data:
+            lyrics_mood_reward = self._calculate_lyrics_mood_reward(lyrics_data)
+            reward += lyrics_mood_reward * self.lyrics_mood_weight
 
         return reward
 
@@ -237,6 +246,24 @@ class RewardCalculator:
             reward *= 0.8
 
         return reward
+
+    def _calculate_lyrics_mood_reward(self, lyrics_data: dict) -> float:
+        """
+        Calcula bonificación basada en el sentimiento de la letra.
+
+        Las letras positivas dan recompensa positiva (canción motivadora).
+        Las letras negativas dan penalización ligera (puede gustar música triste).
+        """
+        sentiment_score = lyrics_data.get("lyrics_sentiment_score", 0.0)
+
+        if sentiment_score > 0.3:
+            return 0.3
+        elif sentiment_score > 0.1:
+            return 0.15
+        elif sentiment_score < -0.3:
+            return -0.1
+        else:
+            return 0.0
 
     def normalize_reward(
         self, reward: float, min_val: float = -2.0, max_val: float = 2.0
