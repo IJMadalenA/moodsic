@@ -117,6 +117,7 @@ def dashboard_callback(request, context):
 
     # ── Populate context ─────────────────────────────────────────
     lyrics_coverage_pct = round((lyrics_matched / total_tracks * 100), 1) if total_tracks else 0
+    lyrics_coverage_pct = min(lyrics_coverage_pct, 100.0)  # cap at 100%
     lyrics_neutral = lyrics_analyzed - lyrics_positive - lyrics_negative
     sentiment_positive_pct = round((lyrics_positive / lyrics_analyzed * 100), 1) if lyrics_analyzed else 0
     match_pct = round((lyrics_matched / total_lyrics * 100), 1) if total_lyrics else 0
