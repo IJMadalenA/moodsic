@@ -85,3 +85,19 @@ class TestMusicModels:
         assert playlist.user == user
         assert playlist.tracks.count() == 1
         assert str(playlist) == f"My Playlist ({user.username})"
+
+    def test_track_enrichment_fields(self):
+        track = Track.objects.create(
+            spotify_id="track_enriched",
+            name="Enriched Track",
+            duration_ms=200000,
+            track_number=1,
+            genre="electronic",
+            subgenre="synthwave",
+            is_playable=False,
+            analysis_url="https://api.spotify.com/v1/audio-analysis/xxx",
+        )
+        assert track.genre == "electronic"
+        assert track.subgenre == "synthwave"
+        assert track.is_playable is False
+        assert "spotify.com" in track.analysis_url
