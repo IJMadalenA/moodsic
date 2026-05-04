@@ -33,6 +33,21 @@ class TrackLyrics(models.Model):
     source = models.CharField(
         max_length=50, default="mill-song-data", verbose_name=_("Fuente")
     )
+    sentiment_score = models.FloatField(
+        null=True, blank=True, verbose_name=_("Sentiment compound")
+    )
+    sentiment_label = models.CharField(
+        max_length=20, blank=True, default="", verbose_name=_("Sentiment label")
+    )
+    sentiment_pos = models.FloatField(
+        null=True, blank=True, verbose_name=_("Positivity score")
+    )
+    sentiment_neg = models.FloatField(
+        null=True, blank=True, verbose_name=_("Negativity score")
+    )
+    sentiment_neu = models.FloatField(
+        null=True, blank=True, verbose_name=_("Neutrality score")
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
 
