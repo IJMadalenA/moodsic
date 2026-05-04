@@ -7,7 +7,7 @@ the RL calculator implementation from ml.reward.
 from __future__ import annotations
 
 from apps.context.models import NewsContext, WeatherContext
-from apps.music.models import Track
+from apps.music.models import Track, TrackLyrics
 from ml.reward import get_reward_calculator
 
 
@@ -31,6 +31,7 @@ class RewardService:
         news_context = self._get_news_context(news_ids)
         audio_features = self._get_track_audio_features(track)
         history = user_history or self._get_user_history(user)
+        lyrics_data = self._get_lyrics_data(track)
 
         # Include coarse news signal into weather_context dict to avoid changing
         # the lower-level calculator signature while still using external context.
@@ -48,6 +49,7 @@ class RewardService:
             weather_context=weather_context,
             track_audio_features=audio_features,
             user_history=history,
+            lyrics_data=lyrics_data,
         )
         return float(self.reward_calculator.normalize_reward(raw_reward))
 
@@ -115,6 +117,22 @@ class RewardService:
             "key": audio_features.key,
             "mode": audio_features.mode,
             "time_signature": audio_features.time_signature,
+        }
+
+    @staticmethod
+    def _get_lyrics_data(track: Track) -> dict | None:
+        lyrics = (
+            TrackLyrics.objects.filter(
+                track=track, sentiment_score__isnull=False
+            )
+            .order_by("-match_score")
+            .first()
+        )
+        if not lyrics:
+            return None
+        return {
+            "lyrics_sentiment_score": lyrics.sentiment_score,
+            "lyrics_sentiment_label": lyrics.sentiment_label,
         }
 
     @staticmethod
