@@ -1,50 +1,157 @@
-from datetime import timedelta
+"""
+Dashboard callback for Moodsic admin landing page.
+Inject rich AI/ML statistics into the Unfold dashboard template.
+"""
 
-from django.utils.timezone import now
-from django.utils.translation import gettext_lazy as _
+from __future__ import annotations
 
-from apps.context.models import WeatherContext
-from apps.music.models import MusicBriefing
+import json
+
+from django.db.models import Count
+
+from apps.music.models import Artist, Playlist, Track, TrackAudioFeatures, TrackLyrics
 
 
-def dashboard_callback(context):
-    """
-    Callback para personalizar el dashboard de Unfold.
-    """
-    # 1. Freshness del Clima
-    six_hours_ago = now() - timedelta(hours=6)
-    stale_weather_count = WeatherContext.objects.filter(
-        timestamp__lt=six_hours_ago
-    ).count()
-    total_weather_count = WeatherContext.objects.count()
+def dashboard_callback(request, context):
 
-    # 2. Conversión de Moods (Últimas 24h)
-    last_24h = now() - timedelta(days=1)
-    # mood_stats = (
-    #     MusicBriefing.objects.filter(created_at__gt=last_24h)
-    #     .values("mood_name")
-    #     .annotate(count=models.Count("id"))
-    #     .order_by("-count")[:5]
-    # )
+    # ── KPI metrics ──────────────────────────────────────────────
+    total_tracks = Track.objects.count()
+    total_artists = Artist.objects.count()
+    total_playlists = Playlist.objects.count()
 
-    context.update(
-        {
-            "statistics": [
-                {
-                    "title": _("Clima Desactualizado (>6h)"),
-                    "metric": f"{stale_weather_count}/{total_weather_count}",
-                    "icon": "exclamation-circle",
-                    "color": "danger" if stale_weather_count > 0 else "success",
-                },
-                {
-                    "title": _("Total Briefings (24h)"),
-                    "metric": MusicBriefing.objects.filter(
-                        created_at__gt=last_24h
-                    ).count(),
-                    "icon": "music-note",
-                    "color": "primary",
-                },
-            ],
-        }
+    total_lyrics = TrackLyrics.objects.count()
+    lyrics_matched = TrackLyrics.objects.filter(track__isnull=False).count()
+    lyrics_analyzed = TrackLyrics.objects.filter(sentiment_score__isnull=False).count()
+    lyrics_positive = TrackLyrics.objects.filter(sentiment_label="positive").count()
+    lyrics_negative = TrackLyrics.objects.filter(sentiment_label="negative").count()
+
+    total_features = TrackAudioFeatures.objects.count()
+    tracks_with_genre = Track.objects.exclude(genre="").count()
+
+    # ── Sentiment distribution chart ─────────────────────────────
+    sentiment_chart = json.dumps({
+        "type": "doughnut",
+        "data": {
+            "labels": ["Positive", "Negative", "Neutral"],
+            "datasets": [{
+                "label": "Lyrics Sentiment",
+                "data": [
+                    lyrics_positive,
+                    lyrics_negative,
+                    lyrics_analyzed - lyrics_positive - lyrics_negative,
+                ],
+                "backgroundColor": [
+                    "rgb(16, 185, 129)",   # green
+                    "rgb(239, 68, 68)",    # red
+                    "rgb(148, 163, 184)",  # gray
+                ],
+                "borderWidth": 0,
+            }],
+        },
+    })
+
+    # ── Top genres chart ─────────────────────────────────────────
+    top_genres = (
+        Track.objects.exclude(genre="")
+        .values("genre")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:10]
     )
+    genre_chart = json.dumps({
+        "type": "bar",
+        "data": {
+            "labels": [g["genre"] for g in top_genres],
+            "datasets": [{
+                "label": "Tracks",
+                "data": [g["count"] for g in top_genres],
+            }],
+        },
+        "options": {
+            "indexAxis": "y",
+            "scales": {
+                "x": {"display": False},
+            },
+        },
+    })
+
+    # ── Matching breakdown ───────────────────────────────────────
+    matched_count = TrackLyrics.objects.filter(match_status="matched").count()
+    reviewed_count = TrackLyrics.objects.filter(match_status="reviewed").count()
+    unmatched_count = total_lyrics - matched_count - reviewed_count
+
+    lyrics_breakdown_chart = json.dumps({
+        "type": "pie",
+        "data": {
+            "labels": ["Matched", "Reviewed", "Unmatched"],
+            "datasets": [{
+                "data": [
+                    matched_count,
+                    reviewed_count,
+                    unmatched_count,
+                ],
+                "backgroundColor": [
+                    "rgb(59, 130, 246)",
+                    "rgb(234, 179, 8)",
+                    "rgb(148, 163, 184)",
+                ],
+                "borderWidth": 0,
+            }],
+        },
+    })
+
+    # ── Recent top sentiment tracks (positive) ───────────────────
+    top_positive_lyrics = list(
+        TrackLyrics.objects.filter(
+            sentiment_label="positive", track__isnull=False
+        )
+        .select_related("track")
+        .order_by("-sentiment_score")[:5]
+        .values("song_name", "artist_name", "sentiment_score")
+    )
+
+    # ── Top negative tracks for contrast ─────────────────────────
+    top_negative_lyrics = list(
+        TrackLyrics.objects.filter(
+            sentiment_label="negative", track__isnull=False
+        )
+        .select_related("track")
+        .order_by("sentiment_score")[:5]
+        .values("song_name", "artist_name", "sentiment_score")
+    )
+
+    # ── Populate context ─────────────────────────────────────────
+    lyrics_coverage_pct = round((lyrics_matched / total_tracks * 100), 1) if total_tracks else 0
+    lyrics_neutral = lyrics_analyzed - lyrics_positive - lyrics_negative
+    sentiment_positive_pct = round((lyrics_positive / lyrics_analyzed * 100), 1) if lyrics_analyzed else 0
+    match_pct = round((lyrics_matched / total_lyrics * 100), 1) if total_lyrics else 0
+
+    context.update({
+        # KPIs
+        "total_tracks": total_tracks,
+        "total_artists": total_artists,
+        "total_playlists": total_playlists,
+        "total_lyrics": total_lyrics,
+        "lyrics_matched": lyrics_matched,
+        "lyrics_analyzed": lyrics_analyzed,
+        "lyrics_positive": lyrics_positive,
+        "lyrics_negative": lyrics_negative,
+        "lyrics_neutral": lyrics_neutral,
+        "lyrics_reviewed": reviewed_count,
+        "lyrics_unmatched": unmatched_count,
+        "total_features": total_features,
+        "tracks_with_genre": tracks_with_genre,
+        "match_pct": match_pct,
+        "sentiment_positive_pct": sentiment_positive_pct,
+        "lyrics_coverage_pct": lyrics_coverage_pct,
+
+        # Charts
+        "sentiment_chart": sentiment_chart,
+        "genre_chart": genre_chart,
+        "lyrics_breakdown_chart": lyrics_breakdown_chart,
+
+        # Top tracks
+        "top_positive_lyrics": top_positive_lyrics,
+        "top_negative_lyrics": top_negative_lyrics,
+    })
+
     return context

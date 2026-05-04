@@ -83,6 +83,7 @@ DJANGO_DEFAULT_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.humanize",
     "django.contrib.admin",  # required
     "django.contrib.sites",  # Required by allauth
 ]
@@ -220,16 +221,6 @@ CITIES_LIGHT_TRANSLATION_LANGUAGES = ["es", "en"]
 CITIES_LIGHT_INCLUDE_COUNTRIES = ["ES"]
 CITIES_LIGHT_APP_NAME = "cities_light"
 
-UNFOLD_CONFIG = {
-    "SITE_TITLE": "Moodsic Admin",
-    "SITE_HEADER": "Moodsic Torre de Control",
-    "SITE_SYMBOL": "music_note",  # Heroicon
-    "SHOW_HISTORY": True,
-    "SHOW_VIEW_ON_SITE": True,
-    "DASHBOARD_CALLBACK": "config.dashboard.dashboard_callback",
-}
-
-
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
@@ -299,18 +290,98 @@ INTERNAL_IPS = [
 
 # DJANGO UNFOLD. https://unfold.readthedocs.io/en/latest/installation.html
 UNFOLD = {
-    "SITE_TITLE": "MoodSic · Admin",
-    "SITE_HEADER": "Panel de administración de MoodSic",
+    "SITE_TITLE": "MoodSic AI",
+    "SITE_HEADER": "MoodSic AI — Neural Music Intelligence",
+    "SITE_SYMBOL": "neurology",
     "INDEX_TITLE": "Resumen operativo del proyecto",
-    # "SITE_DROPDOWN": [
-    #     },
-    #     # ...
-    # ],
+    "SHOW_VIEW_ON_SITE": True,
+    "SHOW_BACK_BUTTON": False,
+    "SHOW_HISTORY": True,
+    "DASHBOARD_CALLBACK": "config.dashboard.dashboard_callback",
     "SIDEBAR": {
         "show_search": True,
+        "show_all_applications": True,
+        "navigation": [
+            {
+                "title": "Core",
+                "separator": True,
+                "collapsible": False,
+                "items": [
+                    {
+                        "title": "Dashboard",
+                        "icon": "dashboard",
+                        "link": "/admin/",
+                    },
+                ],
+            },
+            {
+                "title": "Music Data",
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": "Tracks",
+                        "icon": "music_note",
+                        "link": "/admin/music/track/",
+                    },
+                    {
+                        "title": "Artists",
+                        "icon": "group",
+                        "link": "/admin/music/artist/",
+                    },
+                    {
+                        "title": "Albums",
+                        "icon": "album",
+                        "link": "/admin/music/album/",
+                    },
+                    {
+                        "title": "Playlists",
+                        "icon": "playlist_play",
+                        "link": "/admin/music/playlist/",
+                    },
+                ],
+            },
+            {
+                "title": "AI & NLP",
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": "Lyrics & Sentiment",
+                        "icon": "psychology",
+                        "link": "/admin/music/tracklyrics/",
+                    },
+                    {
+                        "title": "Playlist Genres",
+                        "icon": "category",
+                        "link": "/admin/music/playlistgenre/",
+                    },
+                ],
+            },
+            {
+                "title": "System",
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": "Users",
+                        "icon": "person",
+                        "link": "/admin/users/user/",
+                    },
+                    {
+                        "title": "Groups",
+                        "icon": "groups",
+                        "link": "/admin/auth/group/",
+                    },
+                    {
+                        "title": "Django Admin",
+                        "icon": "settings",
+                        "link": "/admin/",
+                    },
+                ],
+            },
+        ],
     },
-    "SHOW_VIEW_ON_SITE": True,
-    "SHOW_BACK_BUTTON": True,
 }
 
 # LOGGING CONFIGURATION FOR DEBUGGING

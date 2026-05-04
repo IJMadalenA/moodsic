@@ -1,0 +1,256 @@
+{% extends "unfold/layouts/base_simple.html" %}
+{% load i18n unfold humanize %}
+
+{% block breadcrumbs %}{% endblock %}
+{% block title %}{% trans 'Dashboard' %} | {{ site_title }}{% endblock %}
+
+{% block content %}
+{% component "unfold/components/container.html" %}
+
+  {# Hero Banner #}
+  {% component "unfold/components/card.html" with class="mb-6" %}
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold mb-1">Moodsic AI Platform</h1>
+        <p class="text-base opacity-60 max-w-2xl">
+          Motor de recomendacion musical con Reinforcement Learning, analisis de sentimiento NLP
+          sobre letras, y enriquecimiento contextual por clima y noticias.
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-500/10 text-green-600 border border-green-500/30">
+          <span class="material-symbols-outlined text-sm">neurology</span> RL Agent Active
+        </span>
+        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 border border-blue-500/30">
+          <span class="material-symbols-outlined text-sm">psychology</span> VADER NLP Online
+        </span>
+        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-violet-500/10 text-violet-600 border border-violet-500/30">
+          <span class="material-symbols-outlined text-sm">database</span> 1.17M Tracks
+        </span>
+        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/30">
+          <span class="material-symbols-outlined text-sm">cloud</span> Context-Aware
+        </span>
+      </div>
+    </div>
+  {% endcomponent %}
+
+  {# KPI Row 1: Dataset Stats #}
+  <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+    {% component "unfold/components/card.html" %}
+      <div class="flex items-center gap-3">
+        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+          <span class="material-symbols-outlined text-blue-500">music_note</span>
+        </div>
+        <div>
+          {% component "unfold/components/title.html" %}{{ total_tracks|intcomma }}{% endcomponent %}
+          {% component "unfold/components/text.html" %}Tracks{% endcomponent %}
+        </div>
+      </div>
+    {% endcomponent %}
+
+    {% component "unfold/components/card.html" %}
+      <div class="flex items-center gap-3">
+        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center">
+          <span class="material-symbols-outlined text-violet-500">group</span>
+        </div>
+        <div>
+          {% component "unfold/components/title.html" %}{{ total_artists|intcomma }}{% endcomponent %}
+          {% component "unfold/components/text.html" %}Artists{% endcomponent %}
+        </div>
+      </div>
+    {% endcomponent %}
+
+    {% component "unfold/components/card.html" %}
+      <div class="flex items-center gap-3">
+        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+          <span class="material-symbols-outlined text-green-500">lyrics</span>
+        </div>
+        <div>
+          {% component "unfold/components/title.html" %}{{ total_lyrics|intcomma }}{% endcomponent %}
+          {% component "unfold/components/text.html" %}Lyrics Analyzed{% endcomponent %}
+        </div>
+      </div>
+    {% endcomponent %}
+
+    {% component "unfold/components/card.html" %}
+      <div class="flex items-center gap-3">
+        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+          <span class="material-symbols-outlined text-amber-500">graphic_eq</span>
+        </div>
+        <div>
+          {% component "unfold/components/title.html" %}{{ total_features|intcomma }}{% endcomponent %}
+          {% component "unfold/components/text.html" %}Audio Features{% endcomponent %}
+        </div>
+      </div>
+    {% endcomponent %}
+
+    {% component "unfold/components/card.html" %}
+      <div class="flex items-center gap-3">
+        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-pink-500/10 flex items-center justify-center">
+          <span class="material-symbols-outlined text-pink-500">playlist_play</span>
+        </div>
+        <div>
+          {% component "unfold/components/title.html" %}{{ total_playlists|intcomma }}{% endcomponent %}
+          {% component "unfold/components/text.html" %}Playlists{% endcomponent %}
+        </div>
+      </div>
+    {% endcomponent %}
+  </div>
+
+  {# KPI Row 2: AI/NLP Stats #}
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    {% component "unfold/components/card.html" %}
+      <div class="flex items-center justify-between">
+        <div>
+          {% component "unfold/components/text.html" %}NLP Sentiment Coverage{% endcomponent %}
+          {% component "unfold/components/title.html" %}{{ sentiment_positive_pct }}% Positive{% endcomponent %}
+        </div>
+        <div class="w-16 h-16">
+          <svg viewBox="0 0 36 36" class="w-full h-full">
+            <circle cx="18" cy="18" r="14" fill="none" stroke="#334155" stroke-width="3" />
+            <circle cx="18" cy="18" r="14" fill="none" stroke="#22c55e" stroke-width="3" stroke-dasharray="{{ sentiment_positive_pct|floatformat:'0' }}, 100" stroke-linecap="round" class="origin-center -rotate-90" />
+          </svg>
+        </div>
+      </div>
+    {% endcomponent %}
+
+    {% component "unfold/components/card.html" %}
+      <div class="flex items-center justify-between">
+        <div>
+          {% component "unfold/components/text.html" %}Lyrics Linked to Tracks{% endcomponent %}
+          {% component "unfold/components/title.html" %}{{ lyrics_matched|intcomma }} / {{ total_lyrics|intcomma }}{% endcomponent %}
+        </div>
+        <div class="w-16 h-16">
+          <svg viewBox="0 0 36 36" class="w-full h-full">
+            <circle cx="18" cy="18" r="14" fill="none" stroke="#334155" stroke-width="3" />
+            <circle cx="18" cy="18" r="14" fill="none" stroke="#3b82f6" stroke-width="3" stroke-dasharray="{{ match_pct|floatformat:'0' }}, 100" stroke-linecap="round" class="origin-center -rotate-90" />
+          </svg>
+        </div>
+      </div>
+    {% endcomponent %}
+
+    {% component "unfold/components/card.html" %}
+      {% component "unfold/components/text.html" %}Tracks with Genre Tags{% endcomponent %}
+      {% component "unfold/components/title.html" %}{{ tracks_with_genre|intcomma }}{% endcomponent %}
+      {% component "unfold/components/progress.html" with value=99 title="Coverage" %}{% endcomponent %}
+    {% endcomponent %}
+
+    {% component "unfold/components/card.html" %}
+      {% component "unfold/components/text.html" %}Lyric Track Coverage{% endcomponent %}
+      {% component "unfold/components/title.html" %}{{ lyrics_coverage_pct }}%{% endcomponent %}
+      {% component "unfold/components/progress.html" with value=lyrics_coverage_pct title="of tracks have lyrics" %}{% endcomponent %}
+    {% endcomponent %}
+  </div>
+
+  {# Charts Row #}
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+    {% component "unfold/components/card.html" with class="lg:col-span-2" %}
+      {% component "unfold/components/title.html" %}Top Genres{% endcomponent %}
+      {% component "unfold/components/text.html" %}Distribution of tracks by genre across the 1.17M dataset{% endcomponent %}
+      <div class="mt-3">
+        {% component "unfold/components/chart/bar.html" with data=genre_chart %}{% endcomponent %}
+      </div>
+    {% endcomponent %}
+
+    {% component "unfold/components/card.html" %}
+      {% component "unfold/components/title.html" %}Sentiment Distribution{% endcomponent %}
+      {% component "unfold/components/text.html" %}VADER NLP on 73K lyrics{% endcomponent %}
+      <div class="mt-3 space-y-3">
+        {% component "unfold/components/progress.html" with value=sentiment_positive_pct title="Positive" %}{% endcomponent %}
+        <div class="flex justify-between text-sm px-1">
+          <span class="opacity-60">Negative</span>
+          <span class="font-semibold text-red-400">{{ lyrics_negative|intcomma }}</span>
+        </div>
+        <div class="flex justify-between text-sm px-1">
+          <span class="opacity-60">Neutral</span>
+          <span class="font-semibold opacity-60">{{ lyrics_neutral|intcomma }}</span>
+        </div>
+      </div>
+    {% endcomponent %}
+  </div>
+
+  {# Bottom Row: Top Tracks + Lyrics Matching #}
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    {% component "unfold/components/card.html" %}
+      {% component "unfold/components/title.html" %}Most Positive Tracks{% endcomponent %}
+      {% component "unfold/components/text.html" %}Highest sentiment from lyrics analysis{% endcomponent %}
+      <div class="mt-3 space-y-2">
+        {% for t in top_positive_lyrics %}
+          <div class="flex items-center justify-between text-sm">
+            <div class="flex-1 min-w-0">
+              <p class="truncate font-medium">{{ t.song_name }}</p>
+              <p class="text-xs opacity-60 truncate">{{ t.artist_name }}</p>
+            </div>
+            <span class="flex-shrink-0 ml-2 px-2 py-0.5 rounded text-xs font-semibold bg-green-500/10 text-green-600">
+              +{{ t.sentiment_score|floatformat:2 }}
+            </span>
+          </div>
+        {% empty %}
+          <p class="text-sm opacity-60">No analyzed positive lyrics yet.</p>
+        {% endfor %}
+      </div>
+    {% endcomponent %}
+
+    {% component "unfold/components/card.html" %}
+      {% component "unfold/components/title.html" %}Most Negative Tracks{% endcomponent %}
+      {% component "unfold/components/text.html" %}Melancholic &amp; emotional lyrics detected{% endcomponent %}
+      <div class="mt-3 space-y-2">
+        {% for t in top_negative_lyrics %}
+          <div class="flex items-center justify-between text-sm">
+            <div class="flex-1 min-w-0">
+              <p class="truncate font-medium">{{ t.song_name }}</p>
+              <p class="text-xs opacity-60 truncate">{{ t.artist_name }}</p>
+            </div>
+            <span class="flex-shrink-0 ml-2 px-2 py-0.5 rounded text-xs font-semibold bg-red-500/10 text-red-600">
+              {{ t.sentiment_score|floatformat:2 }}
+            </span>
+          </div>
+        {% empty %}
+          <p class="text-sm opacity-60">No analyzed negative lyrics yet.</p>
+        {% endfor %}
+      </div>
+    {% endcomponent %}
+
+    {% component "unfold/components/card.html" %}
+      {% component "unfold/components/title.html" %}Lyrics Matching Status{% endcomponent %}
+      {% component "unfold/components/text.html" %}Fuzzy + exact match against tracks DB{% endcomponent %}
+      <div class="mt-3 space-y-3">
+        {% component "unfold/components/progress.html" with value=match_pct title="Matched" %}{% endcomponent %}
+        <div class="grid grid-cols-3 gap-2 text-center text-sm">
+          <div>
+            <p class="text-lg font-bold text-blue-400">{{ lyrics_matched|intcomma }}</p>
+            <p class="opacity-60 text-xs">Matched</p>
+          </div>
+          <div>
+            <p class="text-lg font-bold text-amber-400">{{ lyrics_reviewed|intcomma }}</p>
+            <p class="opacity-60 text-xs">Reviewed</p>
+          </div>
+          <div>
+            <p class="text-lg font-bold opacity-40">{{ lyrics_unmatched|intcomma }}</p>
+            <p class="opacity-60 text-xs">Unmatched</p>
+          </div>
+        </div>
+      </div>
+    {% endcomponent %}
+  </div>
+
+  {# Tech Stack Footer #}
+  {% component "unfold/components/card.html" with class="mt-6 mb-6" %}
+    <div class="flex flex-wrap items-center gap-3">
+      <span class="text-sm font-semibold opacity-60">Powered by:</span>
+      <span class="px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800">Django 5.2</span>
+      <span class="px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800">PyTorch</span>
+      <span class="px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800">TensorFlow</span>
+      <span class="px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800">VADER NLP</span>
+      <span class="px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800">RapidFuzz</span>
+      <span class="px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800">Scikit-learn</span>
+      <span class="px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800">Pandas</span>
+      <span class="px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800">Matplotlib</span>
+      <span class="px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800">Plotly</span>
+      <span class="px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800">Chart.js</span>
+      <span class="px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800">PostgreSQL</span>
+    </div>
+  {% endcomponent %}
+
+{% endcomponent %}
+{% endblock %}
