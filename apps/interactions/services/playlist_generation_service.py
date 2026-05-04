@@ -113,13 +113,16 @@ class PlaylistGenerationService:
             recommender = get_ml_recommender()
 
             # Fit the recommender on available tracks if not already fitted
-            if not recommender._fitted:
+            if not recommender.is_fitted:
                 recommender.fit(available_tracks)
 
             # Build target mood from weather + news context
+            # news_sentiment will be wired in a future iteration when per-request
+            # news sentiment averaging is added
             target_mood = self._build_target_mood(
                 weather_context=weather_context,
                 news_sentiment=0.0,
+                user_history=user_history,
             )
 
             # ML scoring — returns [(track_idx, similarity_score), ...] sorted desc
@@ -129,20 +132,19 @@ class PlaylistGenerationService:
                 top_k=min(len(available_tracks), self.agent.action_dim),
             )
 
-            # Build ordered list of track indices from ML scores
-            scored_indices = [idx for idx, _ in scored]
-
-            # If ML scored fewer tracks than available, append remaining with heuristic
-            if len(scored_indices) < len(available_tracks):
-                remaining = [
-                    i for i in range(len(available_tracks))
-                    if i not in scored_indices
-                ]
-                fallback = recommender._heuristic_score(
-                    [available_tracks[i] for i in remaining]
-                )
-                fallback_indices = [remaining[idx] for idx, _ in fallback]
-                scored_indices.extend(fallback_indices)
+            # Build scored_indices: ML-scored first, then heuristic-scored remaining tracks
+            ml_scored = list(scored)  # copy to avoid modifying
+            scored_set = {idx for idx, _ in ml_scored}
+            # Heuristic score for non-ML tracks
+            remaining = [i for i in range(len(available_tracks)) if i not in scored_set]
+            if remaining:
+                remaining_tracks = [available_tracks[i] for i in remaining]
+                heuristic_scored = recommender.score_tracks_heuristic(remaining_tracks)
+                # Merge: ML tracks first (cosine similarity), then heuristic (fixed weights)
+                scored_indices = [idx for idx, _ in ml_scored]
+                scored_indices.extend(remaining[idx] for idx, _ in heuristic_scored)
+            else:
+                scored_indices = [idx for idx, _ in ml_scored]
 
             available_actions = scored_indices
 
@@ -744,16 +746,29 @@ class PlaylistGenerationService:
     def _build_target_mood(
         weather_context: dict | None = None,
         news_sentiment: float = 0.0,
+        user_history: dict | None = None,
     ) -> dict:
-        """Build target mood dict from weather context + news sentiment using MoodService."""
+        """Build target mood dict from weather context + news sentiment using MoodService.
+
+        When user_history is provided, blends weather-derived targets (70%)
+        with user preference averages (30%) for personalization.
+        """
         target = {}
+        user_history = user_history or {}
         if weather_context:
             main_status = weather_context.get("main_status", "Clouds")
             mood_params = MoodService.get_combined_params(main_status, news_sentiment)
+            target_energy = mood_params.get("target_energy", 0.5)
+            target_danceability = mood_params.get("target_danceability", 0.5)
+            target_valence = mood_params.get("target_valence", 0.5)
+            # Blend with user preferences (70% weather, 30% user history)
+            user_energy = float(user_history.get("avg_energy", 0.5))
+            user_danceability = float(user_history.get("avg_danceability", 0.5))
+            user_valence = float(user_history.get("avg_valence", 0.5))
             target.update({
-                "target_danceability": mood_params.get("target_danceability", 0.5),
-                "target_energy": mood_params.get("target_energy", 0.5),
-                "target_valence": mood_params.get("target_valence", 0.5),
+                "target_danceability": target_danceability * 0.7 + user_danceability * 0.3,
+                "target_energy": target_energy * 0.7 + user_energy * 0.3,
+                "target_valence": target_valence * 0.7 + user_valence * 0.3,
             })
         return target
 

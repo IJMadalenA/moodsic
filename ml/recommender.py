@@ -53,6 +53,11 @@ class MLRecommender:
         self.feature_matrix_: np.ndarray | None = None
         self._valid_indices_: list[int] = []
 
+    @property
+    def is_fitted(self) -> bool:
+        """Return whether the k-NN model has been fitted with track data."""
+        return self._fitted
+
     def _build_feature_matrix(self, tracks):
         """
         Builds a normalized feature matrix from a list of tracks.
@@ -290,3 +295,24 @@ class MLRecommender:
             scores = scores[:top_k]
 
         return scores
+
+    def score_tracks_heuristic(
+        self, tracks: list, top_k: int | None = None
+    ) -> list[tuple[int, float]]:
+        """Public wrapper around _heuristic_score for external callers.
+
+        Unlike the ML path which uses the target_mood vector, this heuristic
+        uses fixed weights for valence (0.3), energy (0.25), danceability (0.25),
+        and popularity (0.2). It does not consider user-specified target
+        preferences. This is intentional for graceful degradation when the
+        k-NN model has not been fitted.
+
+        Args:
+            tracks: List of Track instances to score.
+            top_k: If provided, returns only the top-k scored tracks.
+
+        Returns:
+            list[tuple[int, float]]: List of (track_index, score) sorted
+            descending by score, with scores clamped to [0.0, 1.0].
+        """
+        return self._heuristic_score(tracks, top_k)
